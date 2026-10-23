@@ -1,56 +1,88 @@
 # Progresso — Cais
 
-## Fase 1 — Fundação (em curso)
+Última atualização: 2026-10-23. Estado geral: **alfa**; fases 1–4 feitas, 5–6 por fazer; critério 5 (e2e) ainda a falhar no último passo.
+
+## Critérios de aceitação
+
+| #   | Critério                                                             | Estado                                                                                          |
+| --- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| 1   | `compose up` + wizard deixa tudo ligado (verificado pelas APIs)      | ✅ `pnpm test:integration`                                                                      |
+| 2   | Mudar idiomas/categoria + apply altera o serviço; 2.º apply sem diff | ✅ `pnpm test:integration`                                                                      |
+| 3   | Alteração direta num serviço é detetada como drift                   | ✅ `pnpm test:integration`                                                                      |
+| 4   | Mount partido é detetado (dois volumes → aviso)                      | ✅ `pnpm test:integration`                                                                      |
+| 5   | e2e Playwright: wizard → pedido → fila do Radarr                     | ⚠️ wizard, indexador falso e pedido via ⌘K passam; a fila do Radarr fica vazia (ver abaixo)     |
+| 6   | Imagem amd64+arm64, não-root, Trivy sem críticos                     | ◑ build amd64 e não-root verificados localmente; arm64 e Trivy só correm no CI (ainda sem push) |
+| 7   | Lighthouse acessibilidade ≥ 90 e UI a 375 px                         | ☐ por medir (UI responsiva e com ARIA, mas sem medição)                                         |
+
+## Fase 1 — Fundação ✅
 
 - [x] Monorepo pnpm (`apps/server`, `apps/web`, `packages/clients`), ESLint/Prettier, TS strict
-- [x] Servidor Fastify: `/healthz`, `/api/status` (sondagem dos 7 serviços), serve a SPA
-- [x] SPA React+Vite+Tailwind com cartões de estado
-- [x] Dockerfile multi-stage não-root; compose; `.env.example`; CI (lint→testes→build→GHCR)
-- [x] `docker build` validado (Colima arrancado); contentor corre como `node` (não-root), `/healthz`, `/api/status` e SPA OK
-- [ ] Validar `docker compose up` com os 7 serviços
-- [ ] Fixar versões das imagens (hoje `latest`, marcado TODO) e configurar Renovate
-- [ ] Confirmar nome/tag da imagem do Byparr e do Seerr (`ghcr.io/seerr-team/seerr`)
+- [x] Servidor Fastify (`/healthz`, `/api/status`), SPA servida pelo backend
+- [x] Dockerfile multi-stage não-root; `docker compose up` com os 7 serviços validado
+- [ ] Fixar versões das imagens (hoje `latest`, marcado `TODO` no compose); o Dependabot (`docker-compose`) propõe as atualizações depois
+- [x] Imagens confirmadas: `ghcr.io/seerr-team/seerr`, `ghcr.io/thephaseless/byparr`
 
-## Fase 2 — Bootstrap (quase completa)
+## Fase 2 — Bootstrap ✅
 
-- [x] `cais-init` (mesma imagem, `node dist/index.js init`): gera chaves (32 hex) e a password do qBittorrent em `cais/secrets/` (nunca sobrescreve), cria `/data/{torrents,media}/{tv,movies}` e dá a posse a PUID:PGID. Corre como root só com CHOWN/DAC_OVERRIDE/FOWNER.
-- [x] Sonarr/Radarr/Prowlarr recebem a chave por `FILE__<SVC>__AUTH__APIKEY` (convenção linuxserver) + `<SVC>__AUTH__*`. Verificado com Sonarr 4.0.20, Radarr 6.4.4, Prowlarr 2.6.5: as variáveis de override funcionam, sem config.xml.
-- [x] qBittorrent: `qBittorrent.conf` (PBKDF2-SHA512) + `categories.json` pré-gerados; login verificado.
-- [x] Bazarr: `config/config.yaml` com `auth.apikey` pré-gerado (Bazarr 1.6.2 aceita).
-- [x] Reconciliador (arranque com retry + `POST /api/reconcile`): Sonarr/Radarr→qBittorrent + root folders; Prowlarr tag `cloudflare`, proxy Byparr, apps Sonarr/Radarr (`fullSync`); Bazarr→Sonarr/Radarr. Idempotente.
-- [x] `pnpm test:integration` (`scripts/integration.sh`): stack real num ambiente limpo, verifica tudo pelas APIs e que o 2.º reconcile não altera nada. Passa.
-- [x] Seerr: ver Fase 4.
-- [ ] Perfil de idiomas do Bazarr (pt-PT + en) — entra com as definições de Legendas (Fase 3).
-- [ ] Teste de integração ainda não corre no CI (descarrega ~6 imagens).
+- [x] `cais-init` (mesma imagem, `node dist/index.js init`): gera chaves e a password do qBittorrent em `cais/secrets/` (nunca sobrescreve), cria `/data/{torrents,media}/{tv,movies}`, dá a posse a PUID:PGID. Corre como root só com CHOWN/DAC_OVERRIDE/FOWNER.
+- [x] Sonarr/Radarr/Prowlarr: chave por `FILE__<SVC>__AUTH__APIKEY` + `<SVC>__AUTH__*` (confirmado com Sonarr 4.0.20, Radarr 6.4.4, Prowlarr 2.6.5; sem `config.xml`).
+- [x] qBittorrent: `qBittorrent.conf` (PBKDF2-SHA512) + `categories.json` pré-gerados. Bazarr: `config/config.yaml` com `auth.apikey`.
+- [x] Reconciliador (arranque com retry + `POST /api/reconcile`): Sonarr/Radarr→qBittorrent + root folders; Prowlarr tag `cloudflare`, proxy Byparr, apps Sonarr/Radarr (`fullSync`); Bazarr→Sonarr/Radarr; Seerr→Sonarr/Radarr. Idempotente.
+- [x] `pnpm test:integration` (`scripts/integration.sh`) cobre ligações, login, plan/apply, drift, hardlinks e Seerr.
 
-## Fase 3 — Plan/Apply (em curso)
+## Fase 3 — Plan/Apply ◑
 
-- [x] Estado desejado (Zod) em SQLite (`node:sqlite`, sem módulos nativos) + tabela de auditoria. Endpoints: `GET/PUT /api/desired`, `GET /api/plan`, `POST /api/apply`, `GET /api/audit`, `GET /api/drift`, `POST /api/drift/adopt`.
-- [x] Modelo por "campos" (`plan/fields.ts`): cada campo sabe ler o real, escrever e adotar. Plan = desejado vs real; apply = escrever só o que difere (idempotente, 3 tentativas, auditoria por escrita); drift = plan sobre o estado já aplicado (verificação de 5 em 5 min e a pedido).
-- [x] Armazenamento: root folders Sonarr/Radarr (+ bibliotecas extra; só adiciona, nunca remove).
-- [x] Downloads: categoria nos download clients, pasta das categorias, limites de velocidade e rácio de seeding no qBittorrent.
-- [x] Legendas: idiomas ativos + perfil "Cais" + perfil por omissão no Bazarr. O Bazarr **apaga** os perfis que faltem no POST de settings, por isso reenviamos sempre os existentes; idiomas só são ativados, nunca desativados.
-- [x] Arranque: só aplica o estado por omissão se ainda não houver estado guardado (senão esconderia o drift).
-- [x] Integração (`pnpm test:integration`) cobre critérios 2 e 3: mudar categoria/limite/idiomas → valor real muda; 2.º plan vazio; alteração direta no qBittorrent → drift; adotar resolve.
-- [ ] Indexadores (listar/ativar/testar no Prowlarr) — por fazer.
-- [ ] Horários de limites de velocidade e seeding por tempo — por fazer.
-- [x] Autenticação do Cais (feita na Fase 4): argon2id (`@node-rs/argon2`), cookie httpOnly + SameSite=Strict, sessões em SQLite (hash SHA-256 do token), bloqueio após 5 falhas, todas as rotas `/api` (exceto `/api/auth/*`) exigem sessão.
+- [x] Estado desejado (Zod) em SQLite (`node:sqlite`) + auditoria. `GET/PUT /api/desired`, `/api/plan`, `/api/apply`, `/api/audit`, `/api/drift`, `/api/drift/adopt`.
+- [x] Modelo por "campos" (`plan/fields.ts`): ler real, escrever, adotar. Plan = desejado vs real; apply idempotente com 3 tentativas e auditoria; drift = plan sobre o estado aplicado (5 em 5 min e a pedido).
+- [x] Armazenamento (root folders + bibliotecas extra; só adiciona), Downloads (categorias, pastas, limites, rácio), Legendas (idiomas, perfil "Cais", perfil por omissão). O Bazarr **apaga** perfis em falta no POST de settings, por isso reenviamos sempre os existentes.
+- [x] Arranque: só aplica o estado por omissão se ainda não houver estado guardado (senão escondia o drift).
+- [ ] **Indexadores** (listar/ativar/testar no Prowlarr)
+- [ ] Horários de limites de velocidade; seeding por tempo
 
-## Fase 4 — UI completa (em curso)
+## Fase 4 — UI ✅ (a menos de medição)
 
-- [x] Login/setup do admin (`/api/auth/{setup,login,logout,me}`); `cais.secret` gerado pelo init; cofre AES-256-GCM (`crypto.ts`) para credenciais de terceiros.
-- [x] Verificação de hardlinks (`POST /api/storage/hardlink-check`, CLI `hardlink-check`): cria ficheiro, faz link, compara dev/inode. Critério 4 coberto no teste de integração (dois volumes → `different_mounts`).
-- [x] Seerr: `POST /api/seerr/setup` autentica no Jellyfin (credenciais não guardadas), lê a API key do Seerr, faz `/settings/initialize` (a página `/setup` nunca aparece) e guarda a key cifrada (AES-GCM, `CAIS_SECRET`/`cais.secret`). O reconcile liga o Seerr ao Sonarr/Radarr (perfil `HD-1080p` se existir, senão o primeiro; TRaSH na Fase 5). Testado com Jellyfin 12.3 real (`deploy/docker-compose.test.yml`, só para testes).
-- [ ] Wizard, painel, atividade, calendário, biblioteca, pedidos, ⌘K, design final.
+- [x] Login/setup do admin: argon2id (`@node-rs/argon2`), cookie httpOnly + SameSite=Strict, sessões em SQLite, bloqueio após 5 falhas; todas as rotas `/api` (exceto `/api/auth/*` e `/healthz`) exigem sessão.
+- [x] Cofre AES-256-GCM (`CAIS_SECRET` ou `cais.secret` gerado pelo init) para credenciais de terceiros.
+- [x] Hardlinks: `POST /api/storage/hardlink-check` + CLI `hardlink-check` (cria ficheiro, link, compara dev/inode).
+- [x] Seerr: `POST /api/seerr/setup` autentica no Jellyfin (credenciais não guardadas), lê a API key, `settings/initialize` (a página `/setup` nunca aparece), guarda a key cifrada. Testado com Jellyfin 12.3 real (`deploy/docker-compose.test.yml`, só para testes).
+- [x] Dados agregados: atividade (qBittorrent + filas *arr, com pausar/retomar/remover), calendário, biblioteca, pedidos (+aprovar), pesquisa/pedir, sistema (versões, health, disco).
+- [x] UI: shell responsivo (barra lateral / barra inferior no telemóvel), tema escuro/claro, wizard de 5 passos, Início, Biblioteca, Pedidos, Atividade, Calendário, Definições (campos por conceito, diff por serviço, "Aplicar tudo", drift com adotar/repor, histórico), Sistema, pesquisa global ⌘K.
+- [x] **i18n PT-PT + EN**: a chave é a frase em português; `apps/web/src/locales/en.ts`; um teste falha se faltar tradução. Mensagens de erro do servidor também traduzidas.
+- [ ] Lighthouse (acessibilidade ≥ 90) e verificação a 375 px
+- [ ] Botão "abrir UI nativa" por serviço (Avançado) — por fazer
+- [ ] Posters/backdrops do TMDB em grande nas páginas de pedidos (hoje só posters em grelha)
+
+### Critério 5 — investigação em curso
+
+O e2e (`pnpm test:e2e`, `KEEP=1` mantém o stack vivo para depuração) passa até pedir o filme pelo ⌘K, mas a fila do Radarr fica a 0 durante 4 min. Por verificar, por ordem: (1) o Seerr criou o filme no Radarr com busca automática? (2) o Prowlarr sincronizou o indexador falso para o Radarr? (3) o Radarr rejeita o release (parse do título/ano, perfil `HD-1080p`, tamanho, seeders)? (4) o Radarr falha ao entregar o `.torrent` ao qBittorrent? O indexador falso é `tests/mock-indexer`.
+
+## Fase 5 — Qualidade e backups ☐
+
+- [ ] Perfis de qualidade TRaSH via **Recyclarr** (preferido, conforme pedido) a partir das definições; escolha 1080p/4K no wizard (hoje o passo só pede idiomas)
+- [ ] Esquema de nomes; notificações (ntfy/Telegram/Discord); exportar/importar estado (YAML); backups agendados dos *arr
+
+## Fase 6 — Adoção ☐
+
+- [ ] Modo "importar": apontar para serviços existentes, ler a config e convertê-la em estado desejado sem alterar nada
+
+## Open source / entrega
+
+- [x] Licença MIT; README EN + PT-PT; CONTRIBUTING; SECURITY; templates de issue/PR; Dependabot (npm, docker, docker-compose, actions)
+- [x] Defaults genéricos no compose/`.env.example` (`DATA_ROOT` obrigatório, PUID/PGID 1000, TZ UTC, imagem `cais:local`); nada específico do host original
+- [x] CI para repositório público (só runners do GitHub): lint → typecheck → testes → build; integração; imagem amd64+arm64, Trivy (críticos), verificação não-root, push para GHCR com tags `sha` + semver. Workflow `e2e` manual/semanal.
+- [ ] Primeiro push para `RJ-Pess/cais` (público) e confirmar o CI; tornar o pacote GHCR público
+- [ ] `packages/clients` ainda é um stub (clientes escritos à mão em `apps/server/src/reconcile/`)
 
 ## Decisões
 
-- Segredos: ficheiros em `cais/secrets/` (montado só-leitura nos serviços que precisam). Estão em claro, como as chaves nos config.xml dos próprios serviços; a cifra com `CAIS_SECRET` aplica-se ao estado desejado/credenciais de terceiros na Fase 3.
-- Clientes API: por agora um cliente Servarr genérico escrito à mão (`reconcile/arr.ts`); a geração a partir das OpenAPI fica para quando houver tipos que justifiquem.
-- Node: o host tem Node 26; a imagem e o CI usam Node 22 LTS.
-- shadcn/ui, SQLite/Drizzle, TanStack Router entram na Fase 3/4 (ainda sem necessidade).
-- Recyclarr (TRaSH): preferido, conforme pedido; entra na Fase 5.
+- Segredos dos serviços: ficheiros em `cais/secrets/`, montados só-leitura onde são precisos; em claro, como as chaves nos `config.xml` dos próprios serviços. Credenciais de terceiros ficam cifradas no SQLite.
+- Clientes de API: um cliente Servarr genérico + Bazarr/qBittorrent/Seerr à mão; gerar das OpenAPI só se compensar.
+- `node:sqlite` em vez de better-sqlite3/Drizzle: sem módulos nativos nas imagens amd64/arm64 (emite um aviso "experimental" no arranque).
+- Node: o host de desenvolvimento tem Node 26; imagem e CI usam Node 22 LTS.
+- Imagem do Cais **pública** no GHCR (projeto open source), com tags imutáveis.
+- shadcn/ui e TanStack Router não foram usados (Tailwind + componentes próprios + React Router chegaram).
+- Autor dos commits: reescrito para o email noreply do GitHub antes da publicação.
 
 ## Perguntas em aberto
 
-- Dono/nome do repositório GHCR (placeholder `OWNER`).
+- Nenhuma bloqueante.
