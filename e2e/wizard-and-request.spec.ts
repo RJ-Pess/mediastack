@@ -72,7 +72,10 @@ test('wizard completo e pedido de um filme que aparece na fila do Radarr', async
   await page.getByLabel('Palavra-passe').fill('jf-password-123');
   await page.getByRole('button', { name: 'Ligar', exact: true }).click();
 
-  await expect(page.getByRole('heading', { name: 'Aplicar a configuração' })).toBeVisible();
+  // O setup do Seerr espera por um eventual reconcile de arranque ainda em curso.
+  await expect(page.getByRole('heading', { name: 'Aplicar a configuração' })).toBeVisible({
+    timeout: 90_000,
+  });
   await page.getByRole('button', { name: 'Aplicar', exact: true }).click();
   await page.getByRole('button', { name: 'Concluir' }).click();
 
