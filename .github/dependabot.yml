@@ -6,12 +6,19 @@ updates:
     groups:
       minor-and-patch:
         update-types: [minor, patch]
+  # Node: ficamos no LTS (22); só atualizações dentro da mesma major.
   - package-ecosystem: docker
     directory: /
     schedule: { interval: weekly }
+    ignore:
+      - dependency-name: node
+        update-types: ['version-update:semver-major']
   - package-ecosystem: docker-compose
     directory: /deploy
     schedule: { interval: weekly }
+    ignore:
+      - dependency-name: node
+        update-types: ['version-update:semver-major']
   - package-ecosystem: github-actions
     directory: /
     schedule: { interval: weekly }

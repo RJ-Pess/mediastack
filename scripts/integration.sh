@@ -110,7 +110,7 @@ apply_ok() {
 
 # 6. Plan/apply: mudar a categoria e um limite no MediaStack altera o valor real nos serviços
 MEDIASTACK="localhost:$PORT"
-D=$(c "$MEDIASTACK/api/desired" | json "d['downloads']['categories']['tv']='series';d['downloads']['downKiBps']=2048;d['subtitles']['languages']=['pt','pb'];d['backups']['intervalDays']=3;print(json.dumps(d))")
+D=$(c "$MEDIASTACK/api/desired" | json "d['downloads']['categories']['tv']='series';d['downloads']['downKiBps']=2048;d['subtitles']['languages']=['pt','pb'];d['backups']['intervalDays']=3;d['downloads']['seedTimeMinutes']=90;d['downloads']['schedule']={'enabled':True,'fromHour':2,'toHour':6,'altDownKiBps':256,'altUpKiBps':64};print(json.dumps(d))")
 c -X PUT -d "$D" "$MEDIASTACK/api/desired" >/dev/null
 PLAN=$(c "$MEDIASTACK/api/plan")
 echo "$PLAN" | json "assert {c['fieldId'] for c in d['changes']}>={'sonarr.downloadclient.category','qbittorrent.limit.down'}, d" || fail "plan sem as alterações esperadas: $PLAN"
@@ -124,6 +124,9 @@ api http://sonarr:8989/api/v3/config/host "$(H sonarr)" | grep -c '"backupInterv
 # 7. Drift: alteração direta no qBittorrent é detetada
 QB="http://qbittorrent:8080/api/v2"
 SID=$(docker exec mediastack wget -S -qO- --post-data="username=mediastack&password=$(key qbittorrent.password)" "$QB/auth/login" 2>&1 | sed -n 's/.*set-cookie: \([^;]*\).*/\1/Ip' | head -1)
+docker exec mediastack wget -qO- --header="Cookie: $SID" "$QB/app/preferences" |
+  json "assert d['max_seeding_time_enabled'] and d['max_seeding_time']==90 and d['scheduler_enabled'] and (d['schedule_from_hour'],d['schedule_from_min'],d['schedule_to_hour'],d['schedule_to_min'])==(2,0,6,0) and d['alt_dl_limit']==256*1024 and d['alt_up_limit']==64*1024, d" ||
+  fail "seeding por tempo / horário de velocidade não chegaram ao qBittorrent"
 docker exec mediastack wget -qO- --header="Cookie: $SID" --post-data='json={"up_limit":524288}' "$QB/app/setPreferences" >/dev/null
 c "$MEDIASTACK/api/drift" | json "assert [c['fieldId'] for c in d['changes']]==['qbittorrent.limit.up'], d" || fail "drift não detetado"
 c -X POST -d '{"fieldId":"qbittorrent.limit.up"}' "$MEDIASTACK/api/drift/adopt" | json "assert d['downloads']['upKiBps']==512, d" || fail "adopt falhou"

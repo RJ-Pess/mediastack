@@ -45,6 +45,16 @@ export const desiredSchema = z.object({
     upKiBps: z.number().int().min(0),
     /** Rácio máximo de seeding; 0 = desligado. */
     seedRatio: z.number().min(0),
+    /** Tempo máximo de seeding em minutos; 0 = desligado. */
+    seedTimeMinutes: z.number().int().min(0).max(525_600),
+    /** Limites alternativos de velocidade num horário (ex.: de noite). */
+    schedule: z.object({
+      enabled: z.boolean(),
+      fromHour: z.number().int().min(0).max(23),
+      toHour: z.number().int().min(0).max(23),
+      altDownKiBps: z.number().int().min(0),
+      altUpKiBps: z.number().int().min(0),
+    }),
   }),
 });
 
@@ -73,5 +83,27 @@ export const defaultDesired = (): Desired => ({
     downKiBps: 0,
     upKiBps: 0,
     seedRatio: 0,
+    seedTimeMinutes: 0,
+    schedule: { enabled: false, fromHour: 1, toHour: 7, altDownKiBps: 0, altUpKiBps: 0 },
   },
 });
+
+const isPlain = (x: unknown): x is Record<string, unknown> =>
+  typeof x === 'object' && x !== null && !Array.isArray(x);
+
+/**
+ * Junta o estado guardado/importado com os valores por omissão, em profundidade: estados
+ * escritos antes de existirem campos novos continuam válidos.
+ */
+export function withDefaults(stored: unknown): Desired {
+  const merge = (base: unknown, over: unknown): unknown =>
+    isPlain(base) && isPlain(over)
+      ? Object.fromEntries(
+          [...new Set([...Object.keys(base), ...Object.keys(over)])].map((k) => [
+            k,
+            k in over ? merge(base[k], over[k]) : base[k],
+          ]),
+        )
+      : over;
+  return desiredSchema.parse(merge(defaultDesired(), stored));
+}

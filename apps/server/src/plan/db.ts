@@ -1,7 +1,7 @@
 import { mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
-import { defaultDesired, desiredSchema, type Desired } from './desired.js';
+import { defaultDesired, withDefaults, type Desired } from './desired.js';
 
 export interface AuditEntry {
   id: number;
@@ -137,10 +137,7 @@ export class Store {
   getDesired(): Desired {
     const row = this.db.prepare('SELECT json FROM desired WHERE id = 1').get() as
       { json: string } | undefined;
-    // Mescla com os defaults: estados guardados antes de existirem campos novos continuam válidos.
-    return row
-      ? desiredSchema.parse({ ...defaultDesired(), ...(JSON.parse(row.json) as object) })
-      : defaultDesired();
+    return row ? withDefaults(JSON.parse(row.json)) : defaultDesired();
   }
 
   setDesired(d: Desired): void {

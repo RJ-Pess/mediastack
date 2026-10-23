@@ -41,6 +41,7 @@ const poster = (images?: ArrImage[]) =>
   images?.find((i) => i.coverType === 'poster')?.remoteUrl ?? null;
 
 const TMDB_IMG = 'https://image.tmdb.org/t/p/w342';
+const TMDB_BACKDROP = 'https://image.tmdb.org/t/p/w780';
 
 export async function getActivity(ctx: Ctx): Promise<ActivityItem[]> {
   const [torrents, sq, rq] = await Promise.all([
@@ -228,8 +229,16 @@ export interface RequestItem {
   tmdbId: number;
   title: string;
   poster: string | null;
+  backdrop: string | null;
   requestedBy: string;
   createdAt: string;
+}
+
+interface TmdbDetail {
+  title?: string;
+  name?: string;
+  posterPath?: string;
+  backdropPath?: string;
 }
 
 export async function getRequests(seerr: SeerrClient): Promise<RequestItem[]> {
@@ -245,10 +254,8 @@ export async function getRequests(seerr: SeerrClient): Promise<RequestItem[]> {
   return Promise.all(
     r.results.map(async (x) => {
       const d = await seerr
-        .get<{ title?: string; name?: string; posterPath?: string }>(
-          `${x.media.mediaType}/${x.media.tmdbId}`,
-        )
-        .catch(() => ({}) as { title?: string; name?: string; posterPath?: string });
+        .get<TmdbDetail>(`${x.media.mediaType}/${x.media.tmdbId}`)
+        .catch((): TmdbDetail => ({}));
       return {
         id: x.id,
         status: x.status,
@@ -256,6 +263,7 @@ export async function getRequests(seerr: SeerrClient): Promise<RequestItem[]> {
         tmdbId: x.media.tmdbId,
         title: d.title ?? d.name ?? `TMDB ${x.media.tmdbId}`,
         poster: d.posterPath ? `${TMDB_IMG}${d.posterPath}` : null,
+        backdrop: d.backdropPath ? `${TMDB_BACKDROP}${d.backdropPath}` : null,
         requestedBy: x.requestedBy?.displayName ?? '—',
         createdAt: x.createdAt,
       };

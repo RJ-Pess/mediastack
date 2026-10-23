@@ -2,26 +2,26 @@
 
 > A aplicação chamou-se «Cais» até 2026-10-23; foi renomeada para **MediaStack** (pacotes, imagem, containers, variáveis `MEDIASTACK_*`, pastas, UI e documentação).
 
-Última atualização: 2026-10-23 (noite). Estado geral: **alfa**; fases 1–6 implementadas; critérios 1–5 e 7 verificados; CI no GitHub ainda a validar (critério 6).
+Última atualização: 2026-10-24. Estado geral: **alfa**; fases 1–6 implementadas; os 7 critérios de aceitação verificados.
 
 ## Critérios de aceitação
 
-| #   | Critério                                                             | Estado                                                                                                                                                       |
-| --- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 1   | `compose up` + wizard deixa tudo ligado (verificado pelas APIs)      | ✅ `pnpm test:integration`                                                                                                                                   |
-| 2   | Mudar idiomas/categoria + apply altera o serviço; 2.º apply sem diff | ✅ `pnpm test:integration`                                                                                                                                   |
-| 3   | Alteração direta num serviço é detetada como drift                   | ✅ `pnpm test:integration`                                                                                                                                   |
-| 4   | Mount partido é detetado (dois volumes → aviso)                      | ✅ `pnpm test:integration`                                                                                                                                   |
-| 5   | e2e Playwright: wizard → pedido → fila do Radarr                     | ⚠️ wizard, indexador falso e pedido via ⌘K passam; a fila do Radarr fica vazia (ver abaixo)                                                                  |
-| 6   | Imagem amd64+arm64, não-root, Trivy sem críticos                     | ◑ build amd64 e não-root verificados localmente; arm64 e Trivy correm no CI (1.º run falhou por tag errada do trivy-action, já corrigida; novo run em curso) |
-| 7   | Lighthouse acessibilidade ≥ 90 e UI a 375 px                         | ☐ por medir (UI responsiva e com ARIA, mas sem medição)                                                                                                      |
+| #   | Critério                                                             | Estado                                                                                                          |
+| --- | -------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------- |
+| 1   | `compose up` + wizard deixa tudo ligado (verificado pelas APIs)      | ✅ `pnpm test:integration`                                                                                      |
+| 2   | Mudar idiomas/categoria + apply altera o serviço; 2.º apply sem diff | ✅ `pnpm test:integration`                                                                                      |
+| 3   | Alteração direta num serviço é detetada como drift                   | ✅ `pnpm test:integration`                                                                                      |
+| 4   | Mount partido é detetado (dois volumes → aviso)                      | ✅ `pnpm test:integration`                                                                                      |
+| 5   | e2e Playwright: wizard → pedido → fila do Radarr                     | ✅ `pnpm test:e2e` (~1,5 min; indexador falso, sem conteúdo real)                                               |
+| 6   | Imagem amd64+arm64, não-root, Trivy sem críticos                     | ✅ job `image` do CI: build amd64+arm64, Trivy (CRITICAL) sem falhas, verificação não-root e push para o GHCR   |
+| 7   | Lighthouse acessibilidade ≥ 90 e UI a 375 px                         | ✅ 100 em Início, Biblioteca, Definições e Sistema (Lighthouse 12, autenticado); sem scroll horizontal a 375 px |
 
 ## Fase 1 — Fundação ✅
 
-- [x] Monorepo pnpm (`apps/server`, `apps/web`, `packages/clients`), ESLint/Prettier, TS strict
+- [x] Monorepo pnpm (`apps/server`, `apps/web`), ESLint/Prettier, TS strict
 - [x] Servidor Fastify (`/healthz`, `/api/status`), SPA servida pelo backend
 - [x] Dockerfile multi-stage não-root; `docker compose up` com os 7 serviços validado
-- [ ] Fixar versões das imagens (hoje `latest`, marcado `TODO` no compose); o Dependabot (`docker-compose`) propõe as atualizações depois
+- [x] Versões das imagens fixadas no compose (Sonarr 4.0.20, Radarr 6.4.4, Prowlarr 2.6.5, Bazarr 1.6.2, qBittorrent 5.3.0, Seerr v3.5.1, Byparr 3.0.4, Recyclarr 8; Jellyfin 12.3 no compose de testes); o Dependabot propõe as atualizações. O Dependabot ignora saltos de major do Node (ficamos no LTS 22).
 - [x] Imagens confirmadas: `ghcr.io/seerr-team/seerr`, `ghcr.io/thephaseless/byparr`
 
 ## Fase 2 — Bootstrap ✅
@@ -39,7 +39,7 @@
 - [x] Armazenamento (root folders + bibliotecas extra; só adiciona), Downloads (categorias, pastas, limites, rácio), Legendas (idiomas, perfil "MediaStack", perfil por omissão). O Bazarr **apaga** perfis em falta no POST de settings, por isso reenviamos sempre os existentes.
 - [x] Arranque: só aplica o estado por omissão se ainda não houver estado guardado (senão escondia o drift).
 - [x] **Indexadores**: listar, adicionar (públicos, a partir das ~90 definições do Prowlarr), ativar/desativar, testar e remover (com confirmação) na UI; teste de integração
-- [ ] Horários de limites de velocidade; seeding por tempo
+- [x] Seeding por tempo e horário de limites de velocidade (limites alternativos, hora de início/fim) no qBittorrent. A API do qBittorrent usa **bytes/s** e só aceita o horário com hora **e** minuto juntos.
 
 ## Fase 4 — UI ✅ (a menos de medição)
 
@@ -51,8 +51,8 @@
 - [x] UI: shell responsivo (barra lateral / barra inferior no telemóvel), tema escuro/claro, wizard de 5 passos, Início, Biblioteca, Pedidos, Atividade, Calendário, Definições (campos por conceito, diff por serviço, "Aplicar tudo", drift com adotar/repor, histórico), Sistema, pesquisa global ⌘K.
 - [x] **i18n PT-PT + EN**: a chave é a frase em português; `apps/web/src/locales/en.ts`; um teste falha se faltar tradução. Mensagens de erro do servidor também traduzidas.
 - [x] Lighthouse (acessibilidade 100) e verificação a 375 px; menu "Mais" no telemóvel (Sistema, idioma, sair)
-- [ ] Botão "abrir UI nativa" por serviço (Avançado) — por fazer
-- [ ] Posters/backdrops do TMDB em grande nas páginas de pedidos (hoje só posters em grelha)
+- [x] Avançado: atalhos para a UI nativa de cada serviço (endereços guardados só no browser; os serviços não são publicados por defeito)
+- [x] Backdrops do TMDB nos cartões de pedidos
 
 ### Critério 5 — notas
 
@@ -86,15 +86,24 @@ Dois problemas encontrados pelo e2e e corrigidos: (1) `POST /api/seerr/setup` ch
 - [x] Licença MIT; README EN + PT-PT; CONTRIBUTING; SECURITY; templates de issue/PR; Dependabot (npm, docker, docker-compose, actions)
 - [x] Defaults genéricos no compose/`.env.example` (`DATA_ROOT` obrigatório, PUID/PGID 1000, TZ UTC, imagem `mediastack:local`); nada específico do host original
 - [x] CI para repositório público (só runners do GitHub): lint → typecheck → testes → build; integração; imagem amd64+arm64, Trivy (críticos), verificação não-root, push para GHCR com tags `sha` + semver. Workflow `e2e` manual/semanal.
-- [x] Publicado em `RJ-Pess/mediastack` (público). 1.º run do CI: `test` verde; `image` falhou (tag `0.28.0` do trivy-action inexistente → `v0.36.0`) e `integration` falhou por timeout num runner lento (espera agora de 5 min + logs em caso de falha). Run com as correções em curso. Falta: confirmar o CI todo verde (arm64, Trivy, push GHCR) e tornar o pacote GHCR público nas definições do GitHub
-- [ ] O Dependabot abriu PRs de atualização no 1.º push (por rever/fundir)
-- [ ] `packages/clients` ainda é um stub (clientes escritos à mão em `apps/server/src/reconcile/`)
+- [x] Publicado em `RJ-Pess/mediastack` (público). O job `image` do CI passa (arm64, Trivy, não-root, push para o GHCR). O job `integration` em Linux revelou três bugs de permissões que o macOS escondia (ver abaixo); corrigidos, a confirmar no run seguinte.
+- [ ] **Ação tua:** tornar o pacote GHCR público (GitHub → Packages → mediastack → Package settings → Change visibility); o `GITHUB_TOKEN` não o consegue fazer.
+- [x] PRs do Dependabot do 1.º push resolvidos: actions atualizadas num commit (setup-node 7, buildx 4, qemu 4, metadata 6); subida do Node 22→25 recusada
+- [x] `packages/clients` (stub vazio) removido: os clientes de API, escritos à mão, vivem em `apps/server/src/reconcile/`
 
 ## Bugs encontrados pelo CI/testes (úteis para a memória do projeto)
 
 - No Linux o container principal não abria a base de dados: o `init` nunca dava a posse (`PUID:PGID`) às pastas `data` e `recyclarr` (uma substituição antiga não chegou a aplicar-se). No macOS/Colima o bind mount é permissivo e escondia o problema. Corrigido com `ownedDirs()` + teste. Reproduzir sempre com um diretório da VM (ex.: `/var/tmp`), não com um caminho do home do Mac.
 - `cmd | grep -q` com `set -o pipefail` falha por SIGPIPE quando a resposta é grande; nos scripts usa-se `grep -c … >/dev/null`.
 - O Seerr rejeita `id` no corpo do PUT de `settings/{sonarr,radarr}`.
+
+## Bugs de permissões só visíveis em Linux
+
+Num bind mount do macOS/Colima qualquer utilizador escreve em qualquer pasta, por isso estes só apareceram no CI (Linux). Regra: **toda a pasta criada pelo `init` e usada por um container não-root tem de estar em `ownedDirs()` / ser chownada**. Para reproduzir, usa um diretório da VM do Docker (ex.: `/var/tmp`), nunca um caminho do home do Mac.
+
+- `mediastack/data` e `mediastack/recyclarr`: o container principal não abria o SQLite.
+- `seerr`: a imagem corre como não-root e crashava ao criar `/app/config/logs` (agora `user: PUID:PGID` + pasta chownada).
+- `/data/torrents` e `/data/media` (pastas-mãe): o teste de hardlinks escreve nelas e falhava.
 
 ## Decisões
 

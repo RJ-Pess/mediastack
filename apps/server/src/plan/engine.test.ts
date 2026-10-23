@@ -142,6 +142,44 @@ describe('plan/apply', () => {
     expect((await plan(ctx, adopted)).changes).toEqual([]);
   });
 
+  it('seeding por tempo e horário de velocidade: formato exato da API e idempotência', async () => {
+    const { ctx, state } = fakeCtx();
+    const d = defaultDesired();
+    d.downloads.seedTimeMinutes = 120;
+    d.downloads.schedule = {
+      enabled: true,
+      fromHour: 1,
+      toHour: 7,
+      altDownKiBps: 512,
+      altUpKiBps: 64,
+    };
+    const store = new Store(':memory:');
+    await apply(ctx, d, store, 'teste');
+    // a API do qBittorrent quer hora E minuto juntos, e limites em bytes/s
+    expect(state.prefs).toMatchObject({
+      max_seeding_time_enabled: true,
+      max_seeding_time: 120,
+      scheduler_enabled: true,
+      schedule_from_hour: 1,
+      schedule_from_min: 0,
+      schedule_to_hour: 7,
+      schedule_to_min: 0,
+      alt_dl_limit: 512 * 1024,
+      alt_up_limit: 64 * 1024,
+    });
+    expect((await plan(ctx, d)).changes).toEqual([]);
+
+    // desligar só liga o interruptor; os valores guardados não contam para o plano
+    d.downloads.schedule.enabled = false;
+    d.downloads.seedTimeMinutes = 0;
+    await apply(ctx, d, store, 'teste');
+    expect(state.prefs).toMatchObject({
+      scheduler_enabled: false,
+      max_seeding_time_enabled: false,
+    });
+    expect((await plan(ctx, d)).changes).toEqual([]);
+  });
+
   it('nunca remove root folders que não estão no estado desejado', async () => {
     const { ctx, state } = fakeCtx();
     state.roots.sonarr!.push('/data/media/outra');

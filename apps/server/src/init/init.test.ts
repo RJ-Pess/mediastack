@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { pbkdf2Sync } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -52,5 +52,27 @@ describe('ownedDirs', () => {
         '/configs/seerr', // o Seerr (não-root) crashava sem a posse desta pasta
       ]),
     );
+  });
+});
+
+describe('pastas de dados', () => {
+  it('cria as pastas-mãe e as subpastas (o hardlink check escreve nas pastas-mãe)', () => {
+    const data = mkdtempSync(join(tmpdir(), 'cais-data-'));
+    runInit({
+      secretsDir: join(tmp(), 's'),
+      configRoot: tmp(),
+      torrentPort: 6882,
+      dataRoot: data,
+    });
+    for (const d of [
+      'torrents',
+      'media',
+      'torrents/tv',
+      'torrents/movies',
+      'media/tv',
+      'media/movies',
+    ]) {
+      expect(statSync(join(data, d)).isDirectory()).toBe(true);
+    }
   });
 });

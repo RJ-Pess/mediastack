@@ -1,6 +1,6 @@
 import { parse, stringify } from 'yaml';
 import { z } from 'zod';
-import { defaultDesired, desiredSchema, type Desired } from './desired.js';
+import { withDefaults, type Desired } from './desired.js';
 
 const FORMAT_VERSION = 1;
 
@@ -40,16 +40,12 @@ export function importYaml(text: string): Imported {
   }
   const doc = documentSchema.safeParse(raw);
   if (!doc.success) throw new Error('ficheiro não é um export do MediaStack (versão 1)');
-  const d = defaultDesired() as unknown as Record<string, unknown>;
-  // Mescla secção a secção, para exports de versões anteriores continuarem válidos.
-  for (const [k, v] of Object.entries(doc.data.desired)) {
-    d[k] =
-      typeof v === 'object' && v !== null && !Array.isArray(v) ? { ...(d[k] as object), ...v } : v;
-  }
-  const desired = desiredSchema.safeParse(d);
-  if (!desired.success) {
-    const i = desired.error.issues[0];
+  let desired: Desired;
+  try {
+    desired = withDefaults(doc.data.desired);
+  } catch (err) {
+    const i = (err as { issues?: { path: PropertyKey[]; message: string }[] }).issues?.[0];
     throw new Error(`estado inválido em ${i?.path.join('.')}: ${i?.message}`);
   }
-  return { desired: desired.data, secrets: doc.data.secrets ?? {} };
+  return { desired, secrets: doc.data.secrets ?? {} };
 }

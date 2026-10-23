@@ -6,6 +6,7 @@ import { useLang, useT } from '../i18n';
 import { Adopt } from './Adopt';
 import { Backups } from './Backups';
 import { Indexers } from './Indexers';
+import { NativeUis } from './NativeUis';
 import { Button, Card, Dot, ErrorNote, PageHeader, Skeleton } from '../ui';
 
 interface Desired {
@@ -31,6 +32,14 @@ interface Desired {
     downKiBps: number;
     upKiBps: number;
     seedRatio: number;
+    seedTimeMinutes: number;
+    schedule: {
+      enabled: boolean;
+      fromHour: number;
+      toHour: number;
+      altDownKiBps: number;
+      altUpKiBps: number;
+    };
   };
 }
 interface Change {
@@ -364,8 +373,61 @@ export function Settings() {
                   }
                 />
               </Row>
+              <Row label={t('Tempo de seeding (min, 0 = desligado)')}>
+                <input
+                  className="input"
+                  inputMode="numeric"
+                  value={value.downloads.seedTimeMinutes}
+                  onChange={(e) =>
+                    set((d) => {
+                      d.downloads.seedTimeMinutes = num(e.target.value);
+                    })
+                  }
+                />
+              </Row>
             </div>
             <p className="muted text-xs">{t('0 = sem limite.')}</p>
+            <fieldset className="space-y-2 border-t pt-3" style={{ borderColor: 'var(--border)' }}>
+              <legend className="sr-only">{t('Horário de limites de velocidade')}</legend>
+              <label className="flex min-h-10 items-center gap-3 text-sm">
+                <input
+                  type="checkbox"
+                  className="size-5"
+                  checked={value.downloads.schedule.enabled}
+                  onChange={(e) =>
+                    set((d) => {
+                      d.downloads.schedule.enabled = e.target.checked;
+                    })
+                  }
+                />
+                {t('Horário de limites de velocidade')}
+              </label>
+              {value.downloads.schedule.enabled && (
+                <div className="grid grid-cols-2 gap-3">
+                  {(
+                    [
+                      ['fromHour', 'Das (hora)', 23],
+                      ['toHour', 'Às (hora)', 23],
+                      ['altDownKiBps', 'Descarga no horário (KiB/s)', 1_000_000],
+                      ['altUpKiBps', 'Envio no horário (KiB/s)', 1_000_000],
+                    ] as const
+                  ).map(([key, label, max]) => (
+                    <Row key={key} label={t(label)}>
+                      <input
+                        className="input"
+                        inputMode="numeric"
+                        value={value.downloads.schedule[key]}
+                        onChange={(e) =>
+                          set((d) => {
+                            d.downloads.schedule[key] = Math.min(max, num(e.target.value));
+                          })
+                        }
+                      />
+                    </Row>
+                  ))}
+                </div>
+              )}
+            </fieldset>
           </Section>
           <Section title="Qualidade" affects="Sonarr, Radarr, Seerr">
             <fieldset className="space-y-1">
@@ -625,6 +687,7 @@ export function Settings() {
           <Indexers />
           <Backups />
           <Adopt />
+          <NativeUis />
           <Card>
             <h2 className="mb-3 font-semibold">{t('Histórico')}</h2>
             <ul className="max-h-72 space-y-1 overflow-auto text-xs">

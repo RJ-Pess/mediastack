@@ -103,7 +103,7 @@ pnpm test:e2e                # Playwright: wizard → request a movie → shows 
 
 The integration and e2e tests use the official images, a real empty Jellyfin and a **mock Torznab indexer** (`tests/mock-indexer`) that serves a fake torrent with no content, no tracker and no peers. They never download real content.
 
-Repository layout: `apps/server` (Fastify API, bootstrap, reconciler), `apps/web` (React UI), `packages/clients` (reserved for generated API clients), `deploy` (Compose), `tests`, `e2e`, `scripts`.
+Repository layout: `apps/server` (Fastify API, bootstrap, reconciler), `apps/web` (React UI), `deploy` (Compose), `tests`, `e2e`, `scripts`.
 
 ## Roadmap
 

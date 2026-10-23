@@ -399,6 +399,50 @@ const prefField = (
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type AnyField = Field<any>;
 
+type Schedule = Desired['downloads']['schedule'];
+const OFF: Schedule = { enabled: false, fromHour: 0, toHour: 0, altDownKiBps: 0, altUpKiBps: 0 };
+/** Desligado, os restantes valores não contam (o qBittorrent guarda-os na mesma). */
+const normSchedule = (x: Schedule): Schedule => (x.enabled ? x : OFF);
+
+/** Limites alternativos de velocidade num horário. A API quer hora E minuto, sempre juntos. */
+const scheduleField: Field<Schedule> = {
+  id: 'qbittorrent.schedule',
+  service: 'qbittorrent',
+  section: 'Downloads',
+  label: 'Horário de limites de velocidade',
+  desired: (s) => normSchedule(s.downloads.schedule),
+  read: async (ctx) => {
+    const p = (await ctx.qbit.getPrefs()) as Record<string, unknown>;
+    return normSchedule({
+      enabled: p.scheduler_enabled === true,
+      fromHour: Number(p.schedule_from_hour),
+      toHour: Number(p.schedule_to_hour),
+      altDownKiBps: Math.round(Number(p.alt_dl_limit) / 1024),
+      altUpKiBps: Math.round(Number(p.alt_up_limit) / 1024),
+    });
+  },
+  write: (ctx, v) =>
+    ctx.qbit.setPrefs(
+      v.enabled
+        ? {
+            scheduler_enabled: true,
+            scheduler_days: 0,
+            schedule_from_hour: v.fromHour,
+            schedule_from_min: 0,
+            schedule_to_hour: v.toHour,
+            schedule_to_min: 0,
+            alt_dl_limit: v.altDownKiBps * 1024,
+            alt_up_limit: v.altUpKiBps * 1024,
+          }
+        : { scheduler_enabled: false },
+    ),
+  adopt: (s, v) => {
+    const n = clone(s);
+    n.downloads.schedule = v.enabled ? v : { ...n.downloads.schedule, enabled: false };
+    return n;
+  },
+};
+
 export const staticFields: AnyField[] = [
   rootsField('sonarr'),
   rootsField('radarr'),
@@ -424,6 +468,15 @@ export const staticFields: AnyField[] = [
     (p) => Math.round(p.up_limit / 1024),
     (v) => ({ up_limit: v * 1024 }),
   ),
+  prefField(
+    'qbittorrent.seed.time',
+    'Tempo máximo de seeding (min, 0 = desligado)',
+    (s) => s.downloads.seedTimeMinutes,
+    (s, v) => (s.downloads.seedTimeMinutes = v),
+    (p) => (p.max_seeding_time_enabled === true ? Number(p.max_seeding_time) : 0),
+    (v) => ({ max_seeding_time_enabled: v > 0, max_seeding_time: v > 0 ? v : -1 }),
+  ),
+  scheduleField,
   prefField(
     'qbittorrent.seed.ratio',
     'Rácio máximo de seeding (0 = desligado)',

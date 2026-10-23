@@ -179,6 +179,20 @@ export const en: Record<string, string> = {
   'field:seerr.profile.radarr': 'Default profile in Seerr (movies)',
   'field:seerr.profile.sonarr': 'Default profile in Seerr (series)',
 
+  // Downloads avançados e UI nativa
+  'Tempo de seeding (min, 0 = desligado)': 'Seeding time (min, 0 = off)',
+  'Horário de limites de velocidade': 'Speed limit schedule',
+  'Das (hora)': 'From (hour)',
+  'Às (hora)': 'To (hour)',
+  'Descarga no horário (KiB/s)': 'Download in schedule (KiB/s)',
+  'Envio no horário (KiB/s)': 'Upload in schedule (KiB/s)',
+  'Avançado: UI nativa dos serviços': 'Advanced: native service UIs',
+  'Por defeito os serviços não são publicados no host. Se publicares uma porta, indica aqui o endereço.':
+    'By default the services are not published on the host. If you publish a port, enter its address here.',
+  'Abrir {name}': 'Open {name}',
+  'field:qbittorrent.seed.time': 'Maximum seeding time (min, 0 = off)',
+  'field:qbittorrent.schedule': 'Speed limit schedule',
+
   // Importar instalação existente
   'Importar uma instalação existente': 'Import an existing installation',
   'Nada é alterado nos serviços até aplicares as definições.':

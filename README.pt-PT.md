@@ -103,7 +103,7 @@ pnpm test:e2e                # Playwright: wizard → pedir um filme → aparece
 
 Os testes de integração e e2e usam as imagens oficiais, um Jellyfin real vazio e um **indexador Torznab falso** (`tests/mock-indexer`) que serve um torrent de brincadeira sem conteúdo, tracker nem peers. Nunca descarregam conteúdo real.
 
-Estrutura: `apps/server` (API Fastify, bootstrap, reconciliador), `apps/web` (UI React), `packages/clients` (reservado para clientes de API gerados), `deploy` (Compose), `tests`, `e2e`, `scripts`.
+Estrutura: `apps/server` (API Fastify, bootstrap, reconciliador), `apps/web` (UI React), `deploy` (Compose), `tests`, `e2e`, `scripts`.
 
 ## Roteiro
 

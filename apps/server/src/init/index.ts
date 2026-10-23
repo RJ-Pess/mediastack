@@ -33,7 +33,7 @@ export function runInit(o: InitOptions): void {
   // O Seerr corre como utilizador não-root e não cria a pasta de config por si.
   mkdirSync(join(o.configRoot, 'seerr'), { recursive: true });
   const dataDirs = o.dataRoot
-    ? ['torrents/tv', 'torrents/movies', 'media/tv', 'media/movies'].map((d) =>
+    ? ['torrents', 'media', 'torrents/tv', 'torrents/movies', 'media/tv', 'media/movies'].map((d) =>
         join(o.dataRoot!, d),
       )
     : [];

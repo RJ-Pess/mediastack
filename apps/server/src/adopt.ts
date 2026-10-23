@@ -69,6 +69,18 @@ export async function deriveDesired(ctx: Ctx): Promise<Derived> {
     d.downloads.downKiBps = Math.round(prefs.dl_limit / 1024);
     d.downloads.upKiBps = Math.round(prefs.up_limit / 1024);
     d.downloads.seedRatio = prefs.max_ratio_enabled ? prefs.max_ratio : 0;
+    const p = prefs as Record<string, unknown>;
+    d.downloads.seedTimeMinutes =
+      p.max_seeding_time_enabled === true ? Number(p.max_seeding_time) : 0;
+    if (p.scheduler_enabled === true) {
+      d.downloads.schedule = {
+        enabled: true,
+        fromHour: Number(p.schedule_from_hour),
+        toHour: Number(p.schedule_to_hour),
+        altDownKiBps: Math.round(Number(p.alt_dl_limit) / 1024),
+        altUpKiBps: Math.round(Number(p.alt_up_limit) / 1024),
+      };
+    }
   }
   // Raiz dos torrents: a pasta-mãe da categoria; senão a pasta de descarga por omissão.
   const catPath = cats && tvCat ? cats[tvCat]?.savePath : undefined;

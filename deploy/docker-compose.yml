@@ -52,7 +52,7 @@ services:
 
   seerr:
     <<: *common
-    image: ghcr.io/seerr-team/seerr:latest # TODO: fixar versão
+    image: ghcr.io/seerr-team/seerr:v3.5.1
     container_name: seerr
     # A imagem corre como não-root: alinha com o dono da pasta de config (ver o init).
     user: '${PUID:-1000}:${PGID:-1000}'
@@ -63,7 +63,7 @@ services:
 
   sonarr:
     <<: *common
-    image: lscr.io/linuxserver/sonarr:latest # TODO: fixar versão
+    image: lscr.io/linuxserver/sonarr:4.0.20
     container_name: sonarr
     depends_on:
       mediastack-init: { condition: service_completed_successfully }
@@ -84,7 +84,7 @@ services:
 
   radarr:
     <<: *common
-    image: lscr.io/linuxserver/radarr:latest # TODO: fixar versão
+    image: lscr.io/linuxserver/radarr:6.4.4
     container_name: radarr
     depends_on:
       mediastack-init: { condition: service_completed_successfully }
@@ -102,7 +102,7 @@ services:
 
   prowlarr:
     <<: *common
-    image: lscr.io/linuxserver/prowlarr:latest # TODO: fixar versão
+    image: lscr.io/linuxserver/prowlarr:2.6.5
     container_name: prowlarr
     depends_on:
       mediastack-init: { condition: service_completed_successfully }
@@ -119,7 +119,7 @@ services:
 
   bazarr:
     <<: *common
-    image: lscr.io/linuxserver/bazarr:latest # TODO: fixar versão
+    image: lscr.io/linuxserver/bazarr:1.6.2
     container_name: bazarr
     depends_on:
       mediastack-init: { condition: service_completed_successfully }
@@ -130,7 +130,7 @@ services:
 
   qbittorrent:
     <<: *common
-    image: lscr.io/linuxserver/qbittorrent:latest # TODO: fixar versão
+    image: lscr.io/linuxserver/qbittorrent:5.3.0
     container_name: qbittorrent
     depends_on:
       mediastack-init: { condition: service_completed_successfully }
@@ -161,7 +161,7 @@ services:
 
   byparr:
     <<: *common
-    image: ghcr.io/thephaseless/byparr:latest # TODO: fixar versão
+    image: ghcr.io/thephaseless/byparr:3.0.4
     container_name: byparr
 
 networks:
