@@ -1,0 +1,25 @@
+@import 'tailwindcss';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --bg: #f6f7f9;
+  --surface: #ffffff;
+  --text: #14171c;
+  --muted: #566070;
+  --border: #dde1e7;
+  --accent: #0e7490;
+}
+.dark {
+  --bg: #0e1116;
+  --surface: #171b22;
+  --text: #e8ebf0;
+  --muted: #9aa5b4;
+  --border: #272d38;
+  --accent: #22d3ee;
+}
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Inter', system-ui, sans-serif;
+}

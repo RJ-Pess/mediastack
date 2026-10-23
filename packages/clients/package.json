@@ -1,0 +1,11 @@
+{
+  "name": "@cais/clients",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "build": "echo ok",
+    "test": "echo ok",
+    "typecheck": "echo ok"
+  }
+}

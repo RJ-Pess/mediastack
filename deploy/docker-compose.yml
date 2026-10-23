@@ -1,0 +1,114 @@
+name: cais
+
+x-common: &common
+  restart: unless-stopped
+  networks: [cais]
+  security_opt: ['no-new-privileges:true']
+
+x-lsio-env: &lsio-env
+  PUID: ${PUID:-1002}
+  PGID: ${PGID:-1001}
+  TZ: ${TZ:-Europe/Lisbon}
+  UMASK: ${UMASK:-002}
+
+services:
+  cais:
+    <<: *common
+    image: ${CAIS_IMAGE:-ghcr.io/OWNER/cais:latest}
+    container_name: cais
+    ports: ['${CAIS_PORT:-8088}:8080']
+    user: '${PUID:-1002}:${PGID:-1001}'
+    cap_drop: [ALL]
+    volumes:
+      - ${CONFIG_ROOT:-/DATA/AppData/Media/cais}/cais:/config
+    depends_on:
+      sonarr: { condition: service_healthy }
+      radarr: { condition: service_healthy }
+      prowlarr: { condition: service_healthy }
+
+  seerr:
+    <<: *common
+    image: ghcr.io/seerr-team/seerr:latest # TODO: fixar versão
+    container_name: seerr
+    environment: { TZ: '${TZ:-Europe/Lisbon}' }
+    volumes: ['${CONFIG_ROOT:-/DATA/AppData/Media/cais}/seerr:/app/config']
+
+  sonarr:
+    <<: *common
+    image: lscr.io/linuxserver/sonarr:latest # TODO: fixar versão
+    container_name: sonarr
+    environment: *lsio-env
+    volumes:
+      - ${CONFIG_ROOT:-/DATA/AppData/Media/cais}/sonarr:/config
+      - ${DATA_ROOT:-/DATA/Disco_EXT/Entretenimento}:/data
+    healthcheck: &hc-ping
+      test: ['CMD-SHELL', 'curl -fs http://localhost:8989/ping || exit 1']
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  radarr:
+    <<: *common
+    image: lscr.io/linuxserver/radarr:latest # TODO: fixar versão
+    container_name: radarr
+    environment: *lsio-env
+    volumes:
+      - ${CONFIG_ROOT:-/DATA/AppData/Media/cais}/radarr:/config
+      - ${DATA_ROOT:-/DATA/Disco_EXT/Entretenimento}:/data
+    healthcheck:
+      <<: *hc-ping
+      test: ['CMD-SHELL', 'curl -fs http://localhost:7878/ping || exit 1']
+
+  prowlarr:
+    <<: *common
+    image: lscr.io/linuxserver/prowlarr:latest # TODO: fixar versão
+    container_name: prowlarr
+    environment: *lsio-env
+    volumes: ['${CONFIG_ROOT:-/DATA/AppData/Media/cais}/prowlarr:/config']
+    healthcheck:
+      <<: *hc-ping
+      test: ['CMD-SHELL', 'curl -fs http://localhost:9696/ping || exit 1']
+
+  bazarr:
+    <<: *common
+    image: lscr.io/linuxserver/bazarr:latest # TODO: fixar versão
+    container_name: bazarr
+    environment: *lsio-env
+    volumes:
+      - ${CONFIG_ROOT:-/DATA/AppData/Media/cais}/bazarr:/config
+      - ${DATA_ROOT:-/DATA/Disco_EXT/Entretenimento}:/data
+
+  qbittorrent:
+    <<: *common
+    image: lscr.io/linuxserver/qbittorrent:latest # TODO: fixar versão
+    container_name: qbittorrent
+    environment:
+      <<: *lsio-env
+      WEBUI_PORT: '8080'
+      TORRENTING_PORT: '${TORRENT_PORT:-6882}'
+    ports:
+      - '${TORRENT_PORT:-6882}:${TORRENT_PORT:-6882}'
+      - '${TORRENT_PORT:-6882}:${TORRENT_PORT:-6882}/udp'
+    volumes:
+      - ${CONFIG_ROOT:-/DATA/AppData/Media/cais}/qbittorrent:/config
+      - ${DATA_ROOT:-/DATA/Disco_EXT/Entretenimento}:/data
+
+  byparr:
+    <<: *common
+    image: ghcr.io/thephaseless/byparr:latest # TODO: fixar versão
+    container_name: byparr
+
+networks:
+  cais: {}
+
+x-casaos:
+  architectures: [amd64, arm64]
+  main: cais
+  title: { pt_pt: Cais, en_us: Cais }
+  tagline: { pt_pt: Painel único para o stack de media, en_us: Single panel for the media stack }
+  category: Media
+  port_map: '8088'
+  index: /
+  scheme: http
+  icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/jellyseerr.png
