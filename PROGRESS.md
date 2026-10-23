@@ -1,18 +1,18 @@
 # Progresso — Cais
 
-Última atualização: 2026-10-23. Estado geral: **alfa**; fases 1–4 feitas, 5–6 por fazer; critérios 1–5 verificados localmente.
+Última atualização: 2026-10-23. Estado geral: **alfa**; fases 1–4 feitas, 5–6 por fazer; critérios 1–5 verificados localmente; CI no GitHub ainda a validar (critério 6).
 
 ## Critérios de aceitação
 
-| #   | Critério                                                             | Estado                                                                                          |
-| --- | -------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| 1   | `compose up` + wizard deixa tudo ligado (verificado pelas APIs)      | ✅ `pnpm test:integration`                                                                      |
-| 2   | Mudar idiomas/categoria + apply altera o serviço; 2.º apply sem diff | ✅ `pnpm test:integration`                                                                      |
-| 3   | Alteração direta num serviço é detetada como drift                   | ✅ `pnpm test:integration`                                                                      |
-| 4   | Mount partido é detetado (dois volumes → aviso)                      | ✅ `pnpm test:integration`                                                                      |
-| 5   | e2e Playwright: wizard → pedido → fila do Radarr                     | ⚠️ wizard, indexador falso e pedido via ⌘K passam; a fila do Radarr fica vazia (ver abaixo)     |
-| 6   | Imagem amd64+arm64, não-root, Trivy sem críticos                     | ◑ build amd64 e não-root verificados localmente; arm64 e Trivy só correm no CI (ainda sem push) |
-| 7   | Lighthouse acessibilidade ≥ 90 e UI a 375 px                         | ☐ por medir (UI responsiva e com ARIA, mas sem medição)                                         |
+| #   | Critério                                                             | Estado                                                                                                                                                       |
+| --- | -------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | `compose up` + wizard deixa tudo ligado (verificado pelas APIs)      | ✅ `pnpm test:integration`                                                                                                                                   |
+| 2   | Mudar idiomas/categoria + apply altera o serviço; 2.º apply sem diff | ✅ `pnpm test:integration`                                                                                                                                   |
+| 3   | Alteração direta num serviço é detetada como drift                   | ✅ `pnpm test:integration`                                                                                                                                   |
+| 4   | Mount partido é detetado (dois volumes → aviso)                      | ✅ `pnpm test:integration`                                                                                                                                   |
+| 5   | e2e Playwright: wizard → pedido → fila do Radarr                     | ⚠️ wizard, indexador falso e pedido via ⌘K passam; a fila do Radarr fica vazia (ver abaixo)                                                                  |
+| 6   | Imagem amd64+arm64, não-root, Trivy sem críticos                     | ◑ build amd64 e não-root verificados localmente; arm64 e Trivy correm no CI (1.º run falhou por tag errada do trivy-action, já corrigida; novo run em curso) |
+| 7   | Lighthouse acessibilidade ≥ 90 e UI a 375 px                         | ☐ por medir (UI responsiva e com ARIA, mas sem medição)                                                                                                      |
 
 ## Fase 1 — Fundação ✅
 
@@ -70,7 +70,8 @@ Dois problemas encontrados pelo e2e e corrigidos: (1) `POST /api/seerr/setup` ch
 - [x] Licença MIT; README EN + PT-PT; CONTRIBUTING; SECURITY; templates de issue/PR; Dependabot (npm, docker, docker-compose, actions)
 - [x] Defaults genéricos no compose/`.env.example` (`DATA_ROOT` obrigatório, PUID/PGID 1000, TZ UTC, imagem `cais:local`); nada específico do host original
 - [x] CI para repositório público (só runners do GitHub): lint → typecheck → testes → build; integração; imagem amd64+arm64, Trivy (críticos), verificação não-root, push para GHCR com tags `sha` + semver. Workflow `e2e` manual/semanal.
-- [x] Publicado em `RJ-Pess/cais` (público). Falta: confirmar o CI todo verde (arm64, Trivy, push GHCR) e tornar o pacote GHCR público nas definições do GitHub
+- [x] Publicado em `RJ-Pess/cais` (público). 1.º run do CI: `test` verde; `image` falhou (tag `0.28.0` do trivy-action inexistente → `v0.36.0`) e `integration` falhou por timeout num runner lento (espera agora de 5 min + logs em caso de falha). Run com as correções em curso. Falta: confirmar o CI todo verde (arm64, Trivy, push GHCR) e tornar o pacote GHCR público nas definições do GitHub
+- [ ] O Dependabot abriu PRs de atualização no 1.º push (por rever/fundir)
 - [ ] `packages/clients` ainda é um stub (clientes escritos à mão em `apps/server/src/reconcile/`)
 
 ## Decisões
