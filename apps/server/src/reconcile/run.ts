@@ -20,6 +20,8 @@ export function createReconciler(
   }),
   /** Em modo importar o MediaStack não cria nem altera nada sozinho (só no apply). */
   isExternal: () => boolean = () => false,
+  /** Pastas escolhidas na UI (para o Seerr). */
+  getRoots: () => { tv: string; movies: string } | undefined = () => undefined,
 ) {
   const state: ReconcileState = { running: false, lastRun: null, steps: [], error: null };
 
@@ -34,7 +36,13 @@ export function createReconciler(
         return state;
       }
       const eff = getEffective();
-      state.steps = await wireServices(eff.config, eff.secrets, fetchImpl, getSeerrKey());
+      state.steps = await wireServices(
+        eff.config,
+        eff.secrets,
+        fetchImpl,
+        getSeerrKey(),
+        getRoots(),
+      );
       state.error = null;
     } catch (err) {
       state.error = err instanceof Error ? err.message : String(err);

@@ -1,4 +1,4 @@
-import { mkdtempSync } from 'node:fs';
+import { existsSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -75,6 +75,7 @@ function fakeCtx() {
     getSecret: () => undefined,
     secrets: { 'radarr.key': 'rk', 'sonarr.key': 'sk' },
     recyclarrDir: mkdtempSync(join(tmpdir(), 'mediastack-rcl-')),
+    dataMount: mkdtempSync(join(tmpdir(), 'mediastack-data-')),
     bazarr,
     sonarr: arr('sonarr', 'tvCategory', 'tvCategory'),
     radarr: arr('radarr', 'movieCategory', 'movieCategory'),
@@ -116,6 +117,10 @@ describe('plan/apply', () => {
     expect(r.failed).toEqual([]);
     expect(state.prefs.dl_limit).toBe(5000 * 1024);
     expect(state.roots.radarr).toContain('/data/media/filmes-bons');
+    // a pasta escolhida na UI foi criada pelo próprio MediaStack (o Radarr só aceita pastas que existam)
+    expect(
+      existsSync(join((ctx as unknown as { dataMount: string }).dataMount, 'media/filmes-bons')),
+    ).toBe(true);
     expect(state.profiles.map((p) => p.name)).toEqual(['Outro', 'MediaStack']); // não apaga o existente
     expect(state.defaultProfile).toBe(2);
     expect(store.listAudit()).toHaveLength(9);

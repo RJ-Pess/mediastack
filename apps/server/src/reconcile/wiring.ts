@@ -2,7 +2,7 @@ import type { Config } from '../config.js';
 import type { SecretName } from '../init/secrets.js';
 import { BazarrClient } from './bazarr.js';
 import { SeerrClient } from './seerr.js';
-import { ArrClient, type ArrResource, type EnsureResult } from './arr.js';
+import { ArrClient, type EnsureResult } from './arr.js';
 
 export interface StepResult {
   step: string;
@@ -20,6 +20,8 @@ export async function wireServices(
   s: Secrets,
   fetchImpl: typeof fetch = fetch,
   seerrKey?: string,
+  /** Pastas de séries/filmes escolhidas na UI (para o Seerr). */
+  roots: { tv: string; movies: string } = { tv: '/data/media/tv', movies: '/data/media/movies' },
 ): Promise<StepResult[]> {
   const sonarr = new ArrClient('Sonarr', c.MEDIASTACK_SONARR_URL, s['sonarr.key'], 'v3', fetchImpl);
   const radarr = new ArrClient('Radarr', c.MEDIASTACK_RADARR_URL, s['radarr.key'], 'v3', fetchImpl);
@@ -33,10 +35,10 @@ export async function wireServices(
   const out: StepResult[] = [];
   const record = (step: string, result: StepResult['result']) => out.push({ step, result });
 
-  // Sonarr / Radarr -> qBittorrent + root folders
-  for (const [app, client, categoryField, category, root] of [
-    ['Sonarr', sonarr, 'tvCategory', 'tv', '/data/media/tv'],
-    ['Radarr', radarr, 'movieCategory', 'movies', '/data/media/movies'],
+  // Sonarr / Radarr -> qBittorrent (as root folders vêm da UI, pelo plan)
+  for (const [app, client, categoryField, category] of [
+    ['Sonarr', sonarr, 'tvCategory', 'tv'],
+    ['Radarr', radarr, 'movieCategory', 'movies'],
   ] as const) {
     record(
       `${app} → qBittorrent`,
@@ -57,13 +59,6 @@ export async function wireServices(
         [categoryField],
       ),
     );
-    const roots = await client.get<ArrResource[]>('rootfolder');
-    if (roots.some((r) => (r as { path?: string }).path === root)) {
-      record(`${app} root folder ${root}`, 'unchanged');
-    } else {
-      await client.request('POST', 'rootfolder', { path: root });
-      record(`${app} root folder ${root}`, 'created');
-    }
   }
 
   // Prowlarr: tag + proxy Byparr (API FlareSolverr) + applications
@@ -130,10 +125,18 @@ export async function wireServices(
       record(
         `Seerr → ${kind === 'sonarr' ? 'Sonarr' : 'Radarr'}`,
         // O perfil é gerido pelo plan (campo seerr.profile.*): o reconcile só o define ao criar.
-        await seerr.ensureArr(kind, await seerrDefinition(c, s, kind, client), [
-          'activeProfileId',
-          'activeProfileName',
-        ]),
+        await seerr.ensureArr(
+          kind,
+          await seerrDefinition(
+            c,
+            s,
+            kind,
+            client,
+            undefined,
+            kind === 'sonarr' ? roots.tv : roots.movies,
+          ),
+          ['activeProfileId', 'activeProfileName'],
+        ),
       );
     }
   }
@@ -150,6 +153,7 @@ export async function seerrDefinition(
   kind: 'sonarr' | 'radarr',
   client: ArrClient,
   profileName?: string,
+  directory?: string,
 ) {
   const profiles = await client.get<{ id: number; name: string }[]>('qualityprofile');
   const profile =
@@ -167,7 +171,7 @@ export async function seerrDefinition(
     baseUrl: '',
     activeProfileId: profile.id,
     activeProfileName: profile.name,
-    activeDirectory: kind === 'sonarr' ? '/data/media/tv' : '/data/media/movies',
+    activeDirectory: directory ?? (kind === 'sonarr' ? '/data/media/tv' : '/data/media/movies'),
     isDefault: true,
   };
 }

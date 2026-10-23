@@ -11,6 +11,7 @@ import {
   renderRequest,
   requestSync,
 } from '../quality/recyclarr.js';
+import { ensureDirs } from '../storage/dirs.js';
 import type { Ctx } from './ctx.js';
 import type { Desired } from './desired.js';
 
@@ -89,6 +90,8 @@ const rootsField = (app: 'sonarr' | 'radarr'): Field<string[]> => ({
   write: async (ctx, want) => {
     const have = (await ctx[app].get<{ path: string }[]>('rootfolder')).map((r) => r.path);
     for (const path of want.filter((p) => !have.includes(p))) {
+      // O Sonarr/Radarr só aceitam pastas que já existam: criamo-las (como PUID:PGID).
+      ensureDirs(ctx.dataMount, [path]);
       await ctx[app].request('POST', 'rootfolder', { path });
     }
   },
@@ -159,10 +162,29 @@ const seerrProfileField = (app: 'radarr' | 'sonarr'): Field<string> => ({
     ctx.seerr!.getArrProfileName(app, `MediaStack ${app === 'radarr' ? 'Radarr' : 'Sonarr'}`),
   write: async (ctx, name) => {
     const def = await seerrDefinition(ctx.config, ctx.secrets, app, ctx[app], name);
-    await ctx.seerr!.ensureArr(app, def);
+    await ctx.seerr!.ensureArr(app, def, ['activeDirectory']);
   },
   adopt: (s) => s,
 });
+
+const seerrDirectoryField = (app: 'radarr' | 'sonarr'): Field<string> => {
+  const name = `MediaStack ${app === 'radarr' ? 'Radarr' : 'Sonarr'}`;
+  return {
+    id: `seerr.directory.${app}`,
+    service: 'seerr',
+    section: 'Armazenamento',
+    label: `Pasta por omissão no Seerr (${app === 'radarr' ? 'filmes' : 'séries'})`,
+    desired: (s) => (app === 'radarr' ? s.storage.moviesRoot : s.storage.tvRoot),
+    applicable: (ctx) => ctx.seerr !== null,
+    read: async (ctx) => ctx.seerr!.getArrDirectory(app, name),
+    write: async (ctx, dir) => {
+      // Só a pasta: o perfil é gerido por `seerr.profile.*`.
+      const def = await seerrDefinition(ctx.config, ctx.secrets, app, ctx[app], undefined, dir);
+      await ctx.seerr!.ensureArr(app, def, ['activeProfileId', 'activeProfileName']);
+    },
+    adopt: (s) => s,
+  };
+};
 
 const NOTIFICATION = 'MediaStack';
 const IMPLEMENTATION = { ntfy: 'Ntfy', discord: 'Discord', telegram: 'Telegram' } as const;
@@ -312,6 +334,8 @@ const qualityFields: AnyField[] = [
   profilesField('sonarr'),
   seerrProfileField('radarr'),
   seerrProfileField('sonarr'),
+  seerrDirectoryField('radarr'),
+  seerrDirectoryField('sonarr'),
 ];
 
 const bazarrFields: AnyField[] = [
@@ -499,6 +523,7 @@ export function allFields(d: Desired): AnyField[] {
       desired: (s) => `${s.downloads.torrentsRoot}/${name}`,
       read: async (ctx) => (await ctx.qbit.getCategories())[name]?.savePath ?? '',
       write: async (ctx, v) => {
+        ensureDirs(ctx.dataMount, [v]);
         const exists = name in (await ctx.qbit.getCategories());
         await ctx.qbit.setCategory(name, v, exists);
       },

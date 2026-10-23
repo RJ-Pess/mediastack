@@ -121,6 +121,9 @@ services:
     <<: *common
     image: lscr.io/linuxserver/bazarr:1.6.2
     container_name: bazarr
+    # O Bazarr guarda o hostname na config (YAML). O ID aleatório do container pode parecer um
+    # número (ex.: 123e456789ab → inf) e o Bazarr passa a recusar todas as escritas.
+    hostname: bazarr
     depends_on:
       mediastack-init: { condition: service_completed_successfully }
     environment: *lsio-env

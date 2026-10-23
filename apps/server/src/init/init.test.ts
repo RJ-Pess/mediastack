@@ -1,10 +1,10 @@
-import { mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { pbkdf2Sync } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { qbitPasswordHash } from './qbittorrent.js';
-import { installRecyclarrScript, ownedDirs, runInit } from './index.js';
+import { ensureWritableRoot, installRecyclarrScript, ownedDirs, runInit } from './index.js';
 import { ensureSecrets } from './secrets.js';
 
 const tmp = () => mkdtempSync(join(tmpdir(), 'mediastack-'));
@@ -55,25 +55,20 @@ describe('ownedDirs', () => {
   });
 });
 
-describe('pastas de dados', () => {
-  it('cria as pastas-mãe e as subpastas (o hardlink check escreve nas pastas-mãe)', () => {
-    const data = mkdtempSync(join(tmpdir(), 'cais-data-'));
-    runInit({
-      secretsDir: join(tmp(), 's'),
-      configRoot: tmp(),
-      torrentPort: 6882,
-      dataRoot: data,
-    });
-    for (const d of [
-      'torrents',
-      'media',
-      'torrents/tv',
-      'torrents/movies',
-      'media/tv',
-      'media/movies',
-    ]) {
-      expect(statSync(join(data, d)).isDirectory()).toBe(true);
-    }
+describe('raiz de dados', () => {
+  it('o init já não cria pastas na biblioteca (isso é feito pela UI)', () => {
+    const data = mkdtempSync(join(tmpdir(), 'mediastack-data-'));
+    runInit({ secretsDir: join(tmp(), 's'), configRoot: tmp(), torrentPort: 6882, dataRoot: data });
+    expect(readdirSync(data)).toEqual([]);
+  });
+
+  it('só toma conta da raiz se for de root (criada pelo Docker); nunca altera a tua biblioteca', () => {
+    const own = { uid: 1000, gid: 1000 };
+    const dir = mkdtempSync(join(tmpdir(), 'mediastack-data-'));
+    // pertence ao utilizador que corre os testes (não é root): não é tocada
+    expect(ensureWritableRoot(dir, own)).toBe(false);
+    expect(ensureWritableRoot('/nao/existe', own)).toBe(false);
+    expect(ensureWritableRoot(dir, undefined)).toBe(false);
   });
 });
 

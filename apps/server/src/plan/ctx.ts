@@ -16,6 +16,8 @@ export interface Ctx {
   config: Config;
   secrets: Secrets;
   recyclarrDir: string;
+  /** Onde o MediaStack vê a raiz de dados (para criar as pastas escolhidas na UI). */
+  dataMount: string;
   /** Segredo de terceiros guardado cifrado (ex.: webhook de notificações). */
   getSecret: (name: string) => string | undefined;
 }
@@ -54,6 +56,7 @@ export function buildCtx(
     config: c,
     secrets: s,
     recyclarrDir: c.MEDIASTACK_RECYCLARR_DIR,
+    dataMount: c.MEDIASTACK_DATA_MOUNT,
     getSecret,
   };
 }

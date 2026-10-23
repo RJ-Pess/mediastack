@@ -210,7 +210,7 @@ function StorageStep({ label, onDone }: { label: string; onDone: () => void }) {
     <Frame title={t('Onde ficam os ficheiros?')} step={label}>
       <p className="muted text-sm">
         {t(
-          'Todos os serviços veem a raiz de dados em /data. Torrents e bibliotecas têm de estar no mesmo volume para haver hardlinks.',
+          'Todos os serviços veem a raiz de dados em /data. Torrents e bibliotecas têm de estar no mesmo volume para haver hardlinks. As pastas que indicares são criadas se não existirem.',
         )}
       </p>
       <ErrorNote error={check.error ?? save.error} />

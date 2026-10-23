@@ -133,8 +133,8 @@ export const en: Record<string, string> = {
   Continuar: 'Continue',
   'Continuar mesmo assim': 'Continue anyway',
   'Onde ficam os ficheiros?': 'Where do the files live?',
-  'Todos os serviços veem a raiz de dados em /data. Torrents e bibliotecas têm de estar no mesmo volume para haver hardlinks.':
-    'All services see the data root at /data. Torrents and libraries must be on the same volume for hardlinks to work.',
+  'Todos os serviços veem a raiz de dados em /data. Torrents e bibliotecas têm de estar no mesmo volume para haver hardlinks. As pastas que indicares são criadas se não existirem.':
+    'All services see the data root at /data. Torrents and libraries must be on the same volume for hardlinks to work. The folders you enter are created if they do not exist.',
   Torrents: 'Torrents',
   'Testar hardlinks': 'Test hardlinks',
   'Hardlinks OK: {from} → {to}': 'Hardlinks OK: {from} → {to}',
@@ -290,6 +290,8 @@ export const en: Record<string, string> = {
   // Nomes dos campos do plano (`field:<id>`)
   'field:sonarr.rootfolders': 'Root folders',
   'field:radarr.rootfolders': 'Root folders',
+  'field:seerr.directory.radarr': 'Default folder in Seerr (movies)',
+  'field:seerr.directory.sonarr': 'Default folder in Seerr (series)',
   'field:sonarr.downloadclient.category': 'Category in qBittorrent',
   'field:radarr.downloadclient.category': 'Category in qBittorrent',
   'field:qbittorrent.category.tv': 'Category folder (series)',

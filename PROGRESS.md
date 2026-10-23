@@ -97,6 +97,14 @@ Dois problemas encontrados pelo e2e e corrigidos: (1) `POST /api/seerr/setup` ch
 - `cmd | grep -q` com `set -o pipefail` falha por SIGPIPE quando a resposta é grande; nos scripts usa-se `grep -c … >/dev/null`.
 - O Seerr rejeita `id` no corpo do PUT de `settings/{sonarr,radarr}`.
 
+## Pastas de dados guiadas pela UI
+
+O `init` já não cria `torrents/` nem `media/`: as pastas (torrents, séries, filmes, bibliotecas extra) vêm do estado desejado (wizard/Definições) e são criadas pelo MediaStack, como PUID:PGID, ao aplicar ou ao testar hardlinks (`storage/dirs.ts`; só dentro de `/data`, recusa `..`). O reconcile deixou de criar root folders e o Seerr segue as pastas escolhidas (campo `seerr.directory.*`). O `init` só toma conta da raiz de dados se for de root (criada pelo Docker); uma biblioteca com dono nunca é alterada.
+
+## Entrega no CasaOS
+
+O compose não depende de ficheiros do repositório: o `sync.sh` do Recyclarr vem na imagem do MediaStack e o `init` copia-o para a pasta partilhada. O container do Bazarr tem `hostname: bazarr` fixo: o Bazarr guarda o hostname no YAML e um ID aleatório do tipo `123e456789ab` é lido como número (`inf`), o que faz recusar todas as escritas (falha aleatória apanhada pelo e2e).
+
 ## Bugs de permissões só visíveis em Linux
 
 Num bind mount do macOS/Colima qualquer utilizador escreve em qualquer pasta, por isso estes só apareceram no CI (Linux). Regra: **toda a pasta criada pelo `init` e usada por um container não-root tem de estar em `ownedDirs()` / ser chownada**. Para reproduzir, usa um diretório da VM do Docker (ex.: `/var/tmp`), nunca um caminho do home do Mac.

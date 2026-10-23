@@ -40,6 +40,7 @@ import { ArrClient } from './reconcile/arr.js';
 import { BazarrClient } from './reconcile/bazarr.js';
 import { QbitClient } from './reconcile/qbit.js';
 import { createPlanService } from './plan/service.js';
+import { ensureDirs, physicalPath } from './storage/dirs.js';
 import { checkHardlink } from './storage/hardlink.js';
 import { createReconciler } from './reconcile/run.js';
 import { probeAll, serviceDefs } from './services.js';
@@ -118,7 +119,10 @@ export async function buildApp(config: Config, fetchImpl?: typeof fetch) {
     const blob = planner.store.getSecret(SEERR_KEY);
     return blob ? vault().decrypt(blob) : undefined;
   };
-  const reconciler = createReconciler(config, fetchImpl, seerrKey, effective, isExternal);
+  const reconciler = createReconciler(config, fetchImpl, seerrKey, effective, isExternal, () => {
+    const d = planner.getDesired();
+    return { tv: d.storage.tvRoot, movies: d.storage.moviesRoot };
+  });
   app.get('/api/seerr', async () => ({
     initialized: await new SeerrClient(
       config.MEDIASTACK_SEERR_URL,
@@ -388,13 +392,22 @@ export async function buildApp(config: Config, fetchImpl?: typeof fetch) {
   // Verifica se downloads e bibliotecas estão no mesmo volume (hardlinks / moves atómicos).
   app.post('/api/storage/hardlink-check', async () => {
     const d = planner.getDesired();
-    const targets = [d.storage.tvRoot, d.storage.moviesRoot];
+    const mount = config.MEDIASTACK_DATA_MOUNT;
+    const from = d.downloads.torrentsRoot;
     return Promise.all(
-      targets.map(async (to) => ({
-        from: d.downloads.torrentsRoot,
-        to,
-        ...(await checkHardlink(d.downloads.torrentsRoot, to)),
-      })),
+      [d.storage.tvRoot, d.storage.moviesRoot].map(async (to) => {
+        try {
+          // As pastas escolhidas na UI podem ainda não existir: cria-as primeiro.
+          ensureDirs(mount, [from, to]);
+        } catch (err) {
+          return { from, to, ok: false, reason: 'not_writable', message: failure(err) };
+        }
+        return {
+          from,
+          to,
+          ...(await checkHardlink(physicalPath(mount, from), physicalPath(mount, to))),
+        };
+      }),
     );
   });
   app.get('/api/plan', async () => planner.plan());

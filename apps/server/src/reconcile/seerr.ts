@@ -83,6 +83,12 @@ export class SeerrClient {
     return list.find((x) => x.name === name)?.activeProfileName ?? '';
   }
 
+  /** Pasta de raiz configurada no Sonarr/Radarr (`name`) dentro do Seerr. */
+  async getArrDirectory(kind: 'sonarr' | 'radarr', name: string): Promise<string> {
+    const list = await this.get<SeerrArrDef[]>(`settings/${kind}`);
+    return list.find((x) => x.name === name)?.activeDirectory ?? '';
+  }
+
   /** Cria ou atualiza o Sonarr/Radarr (`kind`) com este nome; idempotente. */
   async ensureArr(
     kind: 'sonarr' | 'radarr',

@@ -45,12 +45,6 @@ export function runInit(o: InitOptions): void {
     log('sync.sh do Recyclarr instalado');
   // O Seerr corre como utilizador não-root e não cria a pasta de config por si.
   mkdirSync(join(o.configRoot, 'seerr'), { recursive: true });
-  const dataDirs = o.dataRoot
-    ? ['torrents', 'media', 'torrents/tv', 'torrents/movies', 'media/tv', 'media/movies'].map((d) =>
-        join(o.dataRoot!, d),
-      )
-    : [];
-  for (const d of dataDirs) mkdirSync(d, { recursive: true });
   const q = initQbittorrent(join(o.configRoot, 'qbittorrent'), {
     username: 'mediastack',
     password: s['qbittorrent.password'],
@@ -65,9 +59,21 @@ export function runInit(o: InitOptions): void {
 
   if (o.owner) {
     for (const d of ownedDirs(o)) chownTree(d, o.owner.uid, o.owner.gid);
-    // Só as pastas-base: não percorre a biblioteca existente.
-    for (const d of dataDirs) chownSync(d, o.owner.uid, o.owner.gid);
   }
+  // As pastas de dados (torrents, bibliotecas…) são escolhidas na UI e criadas pelo próprio
+  // MediaStack ao aplicar. Aqui só garantimos que ele consegue escrever na raiz.
+  if (o.dataRoot) ensureWritableRoot(o.dataRoot, o.owner);
+}
+
+/**
+ * Quando a raiz de dados é criada pelo Docker (dono root, vazia) o MediaStack, que corre como
+ * PUID:PGID, não conseguiria criar lá as pastas escolhidas. Só nesse caso, e sem recursão,
+ * passa-a para PUID:PGID. Uma raiz que já tem dono (a tua biblioteca) nunca é alterada.
+ */
+export function ensureWritableRoot(root: string, owner?: { uid: number; gid: number }): boolean {
+  if (!owner || !existsSync(root) || statSync(root).uid !== 0) return false;
+  chownSync(root, owner.uid, owner.gid);
+  return true;
 }
 
 /**
