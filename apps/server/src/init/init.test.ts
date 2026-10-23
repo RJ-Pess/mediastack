@@ -49,6 +49,7 @@ describe('ownedDirs', () => {
         '/run/mediastack',
         '/configs/qbittorrent',
         '/configs/bazarr',
+        '/configs/seerr', // o Seerr (não-root) crashava sem a posse desta pasta
       ]),
     );
   });

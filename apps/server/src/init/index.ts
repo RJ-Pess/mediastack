@@ -30,6 +30,8 @@ export function runInit(o: InitOptions): void {
   // Pasta partilhada com o Recyclarr (pedidos de sincronização e resultado).
   const recyclarrDir = join(o.configRoot, 'mediastack', 'recyclarr');
   mkdirSync(recyclarrDir, { recursive: true });
+  // O Seerr corre como utilizador não-root e não cria a pasta de config por si.
+  mkdirSync(join(o.configRoot, 'seerr'), { recursive: true });
   const dataDirs = o.dataRoot
     ? ['torrents/tv', 'torrents/movies', 'media/tv', 'media/movies'].map((d) =>
         join(o.dataRoot!, d),
@@ -69,5 +71,6 @@ export function ownedDirs(o: Pick<InitOptions, 'secretsDir' | 'configRoot'>): st
     o.secretsDir,
     join(o.configRoot, 'qbittorrent'),
     join(o.configRoot, 'bazarr'),
+    join(o.configRoot, 'seerr'),
   ];
 }

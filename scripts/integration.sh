@@ -144,7 +144,7 @@ c -X POST -d '{"hostname":"jellyfin","port":8096,"username":"admin","password":"
 c "$MEDIASTACK/api/seerr" | json "assert d=={'initialized':True,'linked':True}, d" || fail "Seerr não ficou inicializado"
 APPLY=$(c -X POST -d '{}' "$MEDIASTACK/api/apply")
 json "assert not d['failed'], d" <<<"$APPLY" || fail "apply após ligar o Seerr falhou: $APPLY"
-SK=$(python3 -c "import json;print(json.load(open('$WORK/cfg/seerr/settings.json'))['main']['apiKey'])")
+SK=$(docker exec seerr cat /app/config/settings.json | python3 -c "import sys,json;print(json.load(sys.stdin)['main']['apiKey'])")
 for k in sonarr radarr; do
   curl -s -H "X-Api-Key: $SK" "localhost:$SEERR_PORT/api/v1/settings/$k" | grep -q 'MediaStack' || fail "Seerr sem $k"
 done

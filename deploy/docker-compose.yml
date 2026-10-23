@@ -54,6 +54,8 @@ services:
     <<: *common
     image: ghcr.io/seerr-team/seerr:latest # TODO: fixar versão
     container_name: seerr
+    # A imagem corre como não-root: alinha com o dono da pasta de config (ver o init).
+    user: '${PUID:-1000}:${PGID:-1000}'
     depends_on:
       mediastack-init: { condition: service_completed_successfully }
     environment: { TZ: '${TZ:-UTC}' }
