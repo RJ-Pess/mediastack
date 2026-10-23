@@ -54,6 +54,7 @@ export function Shell({ user }: { user: string }) {
   const { lang, setLang } = useLang();
   const [dark, toggle] = useTheme();
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
   const qc = useQueryClient();
 
   useEffect(() => {
@@ -171,11 +172,49 @@ export function Shell({ user }: { user: string }) {
             {t(n.label)}
           </NavLink>
         ))}
-        <NavLink to="/definicoes" className="nav-link flex-col !gap-0.5 !px-2 text-[0.7rem]">
+        <button
+          type="button"
+          className="nav-link flex-col !gap-0.5 !px-2 text-[0.7rem]"
+          aria-expanded={moreOpen}
+          aria-controls="more-menu"
+          onClick={() => setMoreOpen((o) => !o)}
+        >
           <Settings className="size-5" aria-hidden />
           {t('Mais')}
-        </NavLink>
+        </button>
       </nav>
+
+      {moreOpen && (
+        <div
+          id="more-menu"
+          className="card fixed inset-x-2 bottom-16 z-20 space-y-1 md:hidden"
+          onClick={() => setMoreOpen(false)}
+        >
+          {nav.slice(5).map((n) => (
+            <NavLink key={n.to} to={n.to} className="nav-link">
+              <n.icon className="size-5" aria-hidden />
+              {t(n.label)}
+            </NavLink>
+          ))}
+          <Button
+            variant="ghost"
+            className="w-full"
+            onClick={() => setLang(lang === 'pt' ? 'en' : 'pt')}
+          >
+            {lang === 'pt' ? 'English' : 'Português'}
+          </Button>
+          <Button
+            variant="ghost"
+            className="w-full"
+            onClick={async () => {
+              await post('/api/auth/logout');
+              await qc.invalidateQueries({ queryKey: ['me'] });
+            }}
+          >
+            <LogOut className="size-4" aria-hidden /> {t('Sair ({user})', { user })}
+          </Button>
+        </div>
+      )}
 
       <Palette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
     </div>

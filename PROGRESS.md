@@ -48,7 +48,7 @@
 - [x] Dados agregados: atividade (qBittorrent + filas *arr, com pausar/retomar/remover), calendário, biblioteca, pedidos (+aprovar), pesquisa/pedir, sistema (versões, health, disco).
 - [x] UI: shell responsivo (barra lateral / barra inferior no telemóvel), tema escuro/claro, wizard de 5 passos, Início, Biblioteca, Pedidos, Atividade, Calendário, Definições (campos por conceito, diff por serviço, "Aplicar tudo", drift com adotar/repor, histórico), Sistema, pesquisa global ⌘K.
 - [x] **i18n PT-PT + EN**: a chave é a frase em português; `apps/web/src/locales/en.ts`; um teste falha se faltar tradução. Mensagens de erro do servidor também traduzidas.
-- [ ] Lighthouse (acessibilidade ≥ 90) e verificação a 375 px
+- [x] Lighthouse (acessibilidade 100) e verificação a 375 px; menu "Mais" no telemóvel (Sistema, idioma, sair)
 - [ ] Botão "abrir UI nativa" por serviço (Avançado) — por fazer
 - [ ] Posters/backdrops do TMDB em grande nas páginas de pedidos (hoje só posters em grelha)
 
