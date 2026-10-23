@@ -75,7 +75,7 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
       - id: meta
         if: github.event_name != 'pull_request'
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@v6
         with:
           images: ghcr.io/${{ github.repository }}
           # tags imutáveis: sha curto + semver (em tags vX.Y.Z); `latest` só em releases
