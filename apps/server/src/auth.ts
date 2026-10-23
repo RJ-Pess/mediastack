@@ -45,7 +45,16 @@ export async function registerAuth(app: FastifyInstance, store: Store): Promise<
 
   app.get('/api/auth/me', async (req) => {
     const u = currentUser(req.cookies[COOKIE]);
-    return { configured: store.userCount() > 0, user: u?.username ?? null };
+    return {
+      configured: store.userCount() > 0,
+      user: u?.username ?? null,
+      wizardDone: store.getFlag('wizard.done'),
+    };
+  });
+
+  app.post('/api/wizard/complete', async () => {
+    store.setFlag('wizard.done');
+    return { ok: true };
   });
 
   // Só funciona enquanto não existir nenhum utilizador (primeiro passo do wizard).

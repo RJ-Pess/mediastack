@@ -47,6 +47,10 @@ export class SeerrClient {
     return { data: (await res.json()) as T, res };
   }
 
+  get = async <T>(path: string) => (await this.call<T>('GET', path)).data;
+  post = async <T>(path: string, body: unknown = {}) =>
+    (await this.call<T>('POST', path, body)).data;
+
   async isInitialized(): Promise<boolean> {
     return (await this.call<{ initialized: boolean }>('GET', 'settings/public')).data.initialized;
   }

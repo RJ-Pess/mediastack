@@ -20,7 +20,11 @@ describe('autenticação', () => {
     const app = await newApp();
     expect((await app.inject('/api/plan')).statusCode).toBe(401);
     expect((await app.inject('/healthz')).statusCode).toBe(200);
-    expect((await app.inject('/api/auth/me')).json()).toEqual({ configured: false, user: null });
+    expect((await app.inject('/api/auth/me')).json()).toEqual({
+      configured: false,
+      user: null,
+      wizardDone: false,
+    });
   });
 
   it('setup cria o admin uma única vez e a sessão desbloqueia a API', async () => {

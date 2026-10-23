@@ -1,0 +1,405 @@
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { ArrowRight } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { api, post } from '../api';
+import { Button, Card, Dot, ErrorNote, PageHeader, Skeleton } from '../ui';
+
+interface Desired {
+  subtitles: { languages: string[] };
+  storage: {
+    tvRoot: string;
+    moviesRoot: string;
+    extraTvRoots: string[];
+    extraMoviesRoots: string[];
+  };
+  downloads: {
+    torrentsRoot: string;
+    categories: { tv: string; movies: string };
+    downKiBps: number;
+    upKiBps: number;
+    seedRatio: number;
+  };
+}
+interface Change {
+  fieldId: string;
+  service: string;
+  section: string;
+  label: string;
+  before: unknown;
+  after: unknown;
+}
+interface Plan {
+  changes: Change[];
+  errors: { fieldId: string; service: string; error: string }[];
+}
+interface Audit {
+  id: number;
+  ts: string;
+  fieldId: string;
+  before: unknown;
+  after: unknown;
+  status: string;
+  error: string | null;
+}
+
+const ICON: Record<string, string> = {
+  sonarr: 'Sonarr',
+  radarr: 'Radarr',
+  bazarr: 'Bazarr',
+  qbittorrent: 'qBittorrent',
+  prowlarr: 'Prowlarr',
+};
+const show = (v: unknown) =>
+  Array.isArray(v) ? v.join(', ') || '—' : v === '' || v === null ? '—' : String(v);
+const LANGS: [string, string][] = [
+  ['pt', 'Português (PT)'],
+  ['en', 'Inglês'],
+  ['pb', 'Português (BR)'],
+  ['es', 'Espanhol'],
+  ['fr', 'Francês'],
+];
+
+function Section({
+  title,
+  affects,
+  children,
+}: {
+  title: string;
+  affects: string;
+  children: ReactNode;
+}) {
+  return (
+    <Card className="space-y-3">
+      <div>
+        <h2 className="font-semibold">{title}</h2>
+        <p className="muted text-xs">Afeta: {affects}</p>
+      </div>
+      {children}
+    </Card>
+  );
+}
+function Row({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="block space-y-1">
+      <span className="text-sm">{label}</span>
+      {children}
+    </label>
+  );
+}
+
+export function Settings() {
+  const qc = useQueryClient();
+  const desired = useQuery({ queryKey: ['desired'], queryFn: () => api<Desired>('/api/desired') });
+  const plan = useQuery({ queryKey: ['plan'], queryFn: () => api<Plan>('/api/plan') });
+  const drift = useQuery({ queryKey: ['drift'], queryFn: () => api<Plan>('/api/drift') });
+  const audit = useQuery({ queryKey: ['audit'], queryFn: () => api<Audit[]>('/api/audit') });
+  const [draft, setDraft] = useState<Desired | null>(null);
+  const value = draft ?? desired.data;
+
+  const refresh = () =>
+    Promise.all(
+      ['desired', 'plan', 'drift', 'audit'].map((k) => qc.invalidateQueries({ queryKey: [k] })),
+    );
+  const save = useMutation({
+    mutationFn: (d: Desired) => api<Desired>('/api/desired', { method: 'PUT', body: d }),
+    onSuccess: async () => {
+      setDraft(null);
+      await refresh();
+    },
+  });
+  const apply = useMutation({
+    mutationFn: (only?: string[]) =>
+      post<{ failed: { fieldId: string; error: string }[] }>('/api/apply', only ? { only } : {}),
+    onSuccess: refresh,
+  });
+  const adopt = useMutation({
+    mutationFn: (fieldId: string) => post('/api/drift/adopt', { fieldId }),
+    onSuccess: refresh,
+  });
+
+  if (!value)
+    return (
+      <>
+        <PageHeader title="Definições" />
+        <ErrorNote error={desired.error} />
+        <Skeleton className="h-60" />
+      </>
+    );
+  const set = (f: (d: Desired) => void) => {
+    const d = structuredClone(value);
+    f(d);
+    setDraft(d);
+  };
+  const num = (v: string) => Math.max(0, Number(v) || 0);
+  const byService = new Map<string, Change[]>();
+  for (const c of plan.data?.changes ?? [])
+    byService.set(c.service, [...(byService.get(c.service) ?? []), c]);
+  const grouped = [...byService];
+  const driftChanges = drift.data?.changes ?? [];
+
+  return (
+    <>
+      <PageHeader title="Definições">
+        <div className="flex gap-2">
+          {draft && (
+            <Button variant="ghost" onClick={() => setDraft(null)}>
+              Descartar
+            </Button>
+          )}
+          <Button onClick={() => value && save.mutate(value)} disabled={!draft || save.isPending}>
+            Guardar
+          </Button>
+          <Button
+            variant="primary"
+            onClick={() => apply.mutate(undefined)}
+            disabled={!!draft || !plan.data?.changes.length || apply.isPending}
+          >
+            Aplicar tudo{plan.data?.changes.length ? ` (${plan.data.changes.length})` : ''}
+          </Button>
+        </div>
+      </PageHeader>
+      <ErrorNote error={save.error ?? apply.error ?? adopt.error} />
+      {apply.data?.failed.length ? (
+        <ErrorNote
+          error={new Error(apply.data.failed.map((f) => `${f.fieldId}: ${f.error}`).join(' · '))}
+        />
+      ) : null}
+
+      {driftChanges.length > 0 && (
+        <Card className="mb-6 space-y-3" style={{ borderColor: 'var(--warn)' }}>
+          <h2 className="font-semibold">
+            <Dot state="warn" /> Alterações feitas fora do Cais
+          </h2>
+          <ul className="space-y-2">
+            {driftChanges.map((c) => (
+              <li key={c.fieldId} className="flex flex-wrap items-center gap-2 text-sm">
+                <span className="flex-1">
+                  {ICON[c.service]} · {c.label}: <b>{show(c.before)}</b> (esperado{' '}
+                  <b>{show(c.after)}</b>)
+                </span>
+                <Button onClick={() => adopt.mutate(c.fieldId)}>Adotar</Button>
+                <Button onClick={() => apply.mutate([c.fieldId])}>Repor</Button>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
+
+      <div className="grid gap-6 lg:grid-cols-2">
+        <div className="space-y-6">
+          <Section title="Armazenamento" affects="Sonarr, Radarr, Bazarr, qBittorrent">
+            <Row label="Biblioteca de séries">
+              <input
+                className="input"
+                value={value.storage.tvRoot}
+                onChange={(e) =>
+                  set((d) => {
+                    d.storage.tvRoot = e.target.value;
+                  })
+                }
+              />
+            </Row>
+            <Row label="Biblioteca de filmes">
+              <input
+                className="input"
+                value={value.storage.moviesRoot}
+                onChange={(e) =>
+                  set((d) => {
+                    d.storage.moviesRoot = e.target.value;
+                  })
+                }
+              />
+            </Row>
+            <Row label="Bibliotecas extra de filmes (uma por linha)">
+              <textarea
+                className="input"
+                rows={2}
+                value={value.storage.extraMoviesRoots.join('\n')}
+                onChange={(e) =>
+                  set((d) => {
+                    d.storage.extraMoviesRoots = e.target.value
+                      .split('\n')
+                      .map((x) => x.trim())
+                      .filter(Boolean);
+                  })
+                }
+              />
+            </Row>
+            <Row label="Bibliotecas extra de séries (uma por linha)">
+              <textarea
+                className="input"
+                rows={2}
+                value={value.storage.extraTvRoots.join('\n')}
+                onChange={(e) =>
+                  set((d) => {
+                    d.storage.extraTvRoots = e.target.value
+                      .split('\n')
+                      .map((x) => x.trim())
+                      .filter(Boolean);
+                  })
+                }
+              />
+            </Row>
+          </Section>
+          <Section title="Downloads" affects="qBittorrent, Sonarr, Radarr">
+            <Row label="Pasta de torrents">
+              <input
+                className="input"
+                value={value.downloads.torrentsRoot}
+                onChange={(e) =>
+                  set((d) => {
+                    d.downloads.torrentsRoot = e.target.value;
+                  })
+                }
+              />
+            </Row>
+            <div className="grid grid-cols-2 gap-3">
+              <Row label="Categoria (séries)">
+                <input
+                  className="input"
+                  value={value.downloads.categories.tv}
+                  onChange={(e) =>
+                    set((d) => {
+                      d.downloads.categories.tv = e.target.value;
+                    })
+                  }
+                />
+              </Row>
+              <Row label="Categoria (filmes)">
+                <input
+                  className="input"
+                  value={value.downloads.categories.movies}
+                  onChange={(e) =>
+                    set((d) => {
+                      d.downloads.categories.movies = e.target.value;
+                    })
+                  }
+                />
+              </Row>
+              <Row label="Limite de descarga (KiB/s)">
+                <input
+                  className="input"
+                  inputMode="numeric"
+                  value={value.downloads.downKiBps}
+                  onChange={(e) =>
+                    set((d) => {
+                      d.downloads.downKiBps = num(e.target.value);
+                    })
+                  }
+                />
+              </Row>
+              <Row label="Limite de envio (KiB/s)">
+                <input
+                  className="input"
+                  inputMode="numeric"
+                  value={value.downloads.upKiBps}
+                  onChange={(e) =>
+                    set((d) => {
+                      d.downloads.upKiBps = num(e.target.value);
+                    })
+                  }
+                />
+              </Row>
+              <Row label="Rácio de seeding (0 = desligado)">
+                <input
+                  className="input"
+                  inputMode="decimal"
+                  value={value.downloads.seedRatio}
+                  onChange={(e) =>
+                    set((d) => {
+                      d.downloads.seedRatio = num(e.target.value);
+                    })
+                  }
+                />
+              </Row>
+            </div>
+            <p className="muted text-xs">0 = sem limite.</p>
+          </Section>
+          <Section title="Legendas" affects="Bazarr">
+            <fieldset className="space-y-1">
+              <legend className="sr-only">Idiomas das legendas</legend>
+              {LANGS.map(([c, n]) => (
+                <label key={c} className="flex min-h-10 items-center gap-3">
+                  <input
+                    type="checkbox"
+                    className="size-5"
+                    checked={value.subtitles.languages.includes(c)}
+                    onChange={() =>
+                      set((d) => {
+                        d.subtitles.languages = d.subtitles.languages.includes(c)
+                          ? d.subtitles.languages.filter((x) => x !== c)
+                          : [...d.subtitles.languages, c];
+                      })
+                    }
+                  />
+                  {n}
+                </label>
+              ))}
+            </fieldset>
+          </Section>
+        </div>
+
+        <div className="space-y-6">
+          <Card className="space-y-3">
+            <h2 className="font-semibold">Plano de alterações</h2>
+            {draft && (
+              <p className="muted text-sm">Guarda primeiro para ver o que muda nos serviços.</p>
+            )}
+            {plan.isLoading ? (
+              <Skeleton className="h-24" />
+            ) : grouped.length ? (
+              grouped.map(([svc, changes]) => (
+                <div key={svc}>
+                  <p className="mb-1 text-sm font-medium">{ICON[svc] ?? svc}</p>
+                  <ul className="space-y-1">
+                    {changes?.map((c) => (
+                      <li
+                        key={c.fieldId}
+                        className="rounded-lg p-2 text-sm"
+                        style={{ background: 'var(--surface-2)' }}
+                      >
+                        <p className="muted text-xs">{c.label}</p>
+                        <p className="flex flex-wrap items-center gap-2">
+                          <del className="muted">{show(c.before)}</del>
+                          <ArrowRight className="size-4" aria-label="passa a" />
+                          <b>{show(c.after)}</b>
+                        </p>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              ))
+            ) : (
+              <p className="muted text-sm">
+                <Dot state="ok" /> Tudo em sincronia com o estado desejado.
+              </p>
+            )}
+            {plan.data?.errors.map((e) => (
+              <p key={e.fieldId} className="text-sm" style={{ color: 'var(--bad)' }}>
+                {e.fieldId}: {e.error}
+              </p>
+            ))}
+          </Card>
+          <Card>
+            <h2 className="mb-3 font-semibold">Histórico</h2>
+            <ul className="max-h-72 space-y-1 overflow-auto text-xs">
+              {audit.data?.length ? (
+                audit.data.map((a) => (
+                  <li key={a.id}>
+                    <time className="muted" dateTime={a.ts}>
+                      {new Date(a.ts).toLocaleString('pt-PT')}
+                    </time>{' '}
+                    · {a.fieldId}: {show(a.before)} → {show(a.after)}{' '}
+                    {a.status === 'error' && <b style={{ color: 'var(--bad)' }}>({a.error})</b>}
+                  </li>
+                ))
+              ) : (
+                <li className="muted">Sem registos.</li>
+              )}
+            </ul>
+          </Card>
+        </div>
+      </div>
+    </>
+  );
+}

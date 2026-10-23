@@ -8,6 +8,15 @@ import { createVault } from './crypto.js';
 import { readSecrets } from './init/secrets.js';
 import { SeerrClient } from './reconcile/seerr.js';
 import { z } from 'zod';
+import { buildCtx } from './plan/ctx.js';
+import {
+  getActivity,
+  getCalendar,
+  getLibrary,
+  getRequests,
+  getSystem,
+  search,
+} from './media/data.js';
 import { createPlanService } from './plan/service.js';
 import { checkHardlink } from './storage/hardlink.js';
 import { createReconciler } from './reconcile/run.js';
@@ -67,6 +76,56 @@ export async function buildApp(config: Config, fetchImpl?: typeof fetch) {
     }
     return reconciler.run();
   });
+  // --- Dados agregados para a UI ---
+  const ctx = () => buildCtx(config, fetchImpl);
+  const seerrOr503 = (reply: import('fastify').FastifyReply) => {
+    const k = seerrKey();
+    if (!k) void reply.code(503).send({ error: 'o Seerr ainda não está ligado ao Jellyfin' });
+    return k ? new SeerrClient(config.CAIS_SEERR_URL, k, fetchImpl) : null;
+  };
+  app.get('/api/activity', async () => getActivity(ctx()));
+  app.post('/api/activity/:hash/:action', async (req, reply) => {
+    const { hash, action } = req.params as { hash: string; action: string };
+    if (!/^[0-9a-f]{40,64}$/i.test(hash) || !['pause', 'resume', 'delete'].includes(action)) {
+      return reply.code(400).send({ error: 'pedido inválido' });
+    }
+    await ctx().qbit.torrentAction(action as 'pause' | 'resume' | 'delete', hash);
+    return { ok: true };
+  });
+  app.get('/api/calendar', async () => getCalendar(ctx()));
+  app.get('/api/library', async () => getLibrary(ctx()));
+  app.get('/api/system', async () => getSystem(ctx(), config));
+  app.get('/api/requests', async (_req, reply) => {
+    const s = seerrOr503(reply);
+    return s ? getRequests(s) : reply;
+  });
+  app.post('/api/requests/:id/approve', async (req, reply) => {
+    const s = seerrOr503(reply);
+    const id = Number((req.params as { id: string }).id);
+    if (!s || !Number.isInteger(id)) return reply;
+    return s.post(`request/${id}/approve`);
+  });
+  app.get('/api/search', async (req, reply) => {
+    const q = String((req.query as { q?: string }).q ?? '').trim();
+    const s = seerrOr503(reply);
+    if (!s) return reply;
+    return q ? search(s, q) : [];
+  });
+  app.post('/api/request', async (req, reply) => {
+    const s = seerrOr503(reply);
+    const b = req.body as { mediaType?: string; tmdbId?: number };
+    if (!s) return reply;
+    if ((b.mediaType !== 'movie' && b.mediaType !== 'tv') || !Number.isInteger(b.tmdbId)) {
+      return reply.code(400).send({ error: 'mediaType/tmdbId inválidos' });
+    }
+    // Séries: todas as temporadas; o Seerr resolve o resto com os defaults do Sonarr/Radarr.
+    return s.post('request', {
+      mediaType: b.mediaType,
+      mediaId: b.tmdbId,
+      ...(b.mediaType === 'tv' ? { seasons: 'all' } : {}),
+    });
+  });
+
   app.get('/api/reconcile', async () => reconciler.state);
   app.post('/api/reconcile', async () => reconciler.run());
   app.decorate('reconciler', reconciler);

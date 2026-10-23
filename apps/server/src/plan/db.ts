@@ -29,6 +29,7 @@ export class Store {
       CREATE TABLE IF NOT EXISTS sessions (
         token_hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL, expires_at INTEGER NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS flags (name TEXT PRIMARY KEY, value TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS secrets (name TEXT PRIMARY KEY, value TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS audit (
         id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, actor TEXT NOT NULL,
@@ -91,6 +92,14 @@ export class Store {
       this.db.prepare('SELECT value FROM secrets WHERE name = ?').get(name) as
         { value: string } | undefined
     )?.value;
+  }
+
+  getFlag(name: string): boolean {
+    return this.db.prepare('SELECT 1 FROM flags WHERE name = ?').get(name) !== undefined;
+  }
+
+  setFlag(name: string): void {
+    this.db.prepare('INSERT OR IGNORE INTO flags (name, value) VALUES (?, ?)').run(name, '1');
   }
 
   hasDesired(): boolean {

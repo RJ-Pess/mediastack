@@ -14,10 +14,12 @@
     "test": "pnpm -r test",
     "lint": "eslint . && prettier --check .",
     "typecheck": "pnpm -r typecheck",
-    "test:integration": "scripts/integration.sh"
+    "test:integration": "scripts/integration.sh",
+    "test:e2e": "scripts/e2e.sh"
   },
   "devDependencies": {
     "@eslint/js": "^9.37.0",
+    "@playwright/test": "^1.64.1",
     "eslint": "^9.37.0",
     "prettier": "^3.6.2",
     "typescript": "^5.9.3",

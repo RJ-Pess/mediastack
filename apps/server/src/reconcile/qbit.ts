@@ -60,4 +60,36 @@ export class QbitClient {
       new URLSearchParams({ category: name, savePath }),
     );
   }
+
+  getTorrents = async () => (await (await this.call('torrents/info')).json()) as QbitTorrent[];
+
+  async torrentAction(action: 'pause' | 'resume' | 'delete', hash: string): Promise<void> {
+    // qBittorrent 5 renomeou pause/resume para stop/start; tenta o nome novo e cai no antigo.
+    const names = { pause: ['stop', 'pause'], resume: ['start', 'resume'], delete: ['delete'] }[
+      action
+    ];
+    const form = new URLSearchParams({
+      hashes: hash,
+      ...(action === 'delete' ? { deleteFiles: 'false' } : {}),
+    });
+    for (const [i, n] of names.entries()) {
+      try {
+        await this.call(`torrents/${n}`, form);
+        return;
+      } catch (err) {
+        if (i === names.length - 1) throw err;
+      }
+    }
+  }
+}
+
+export interface QbitTorrent {
+  hash: string;
+  name: string;
+  progress: number;
+  dlspeed: number;
+  eta: number;
+  state: string;
+  category: string;
+  size: number;
 }
