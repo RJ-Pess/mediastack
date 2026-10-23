@@ -152,12 +152,12 @@ services:
     user: '${PUID:-1000}:${PGID:-1000}'
     depends_on:
       mediastack-init: { condition: service_completed_successfully }
-    entrypoint: ['/bin/sh', '/mediastack/sync.sh']
+    # O sync.sh é copiado para esta pasta pelo mediastack-init (vem na imagem do MediaStack).
+    entrypoint: ['/bin/sh', '/config/sync.sh']
     environment:
       TZ: ${TZ:-UTC}
     volumes:
       - ${CONFIG_ROOT:-./config}/mediastack/recyclarr:/config
-      - ./recyclarr/sync.sh:/mediastack/sync.sh:ro
 
   byparr:
     <<: *common

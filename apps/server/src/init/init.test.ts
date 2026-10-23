@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { qbitPasswordHash } from './qbittorrent.js';
-import { ownedDirs, runInit } from './index.js';
+import { installRecyclarrScript, ownedDirs, runInit } from './index.js';
 import { ensureSecrets } from './secrets.js';
 
 const tmp = () => mkdtempSync(join(tmpdir(), 'mediastack-'));
@@ -74,5 +74,24 @@ describe('pastas de dados', () => {
     ]) {
       expect(statSync(join(data, d)).isDirectory()).toBe(true);
     }
+  });
+});
+
+describe('installRecyclarrScript', () => {
+  it('copia o script para a pasta do Recyclarr e mantém-no atualizado', () => {
+    const src = join(tmp(), 'sync.sh');
+    const dest = tmp();
+    writeFileSync(src, '#!/bin/sh\necho v1\n');
+    expect(installRecyclarrScript(src, dest)).toBe(true);
+    expect(readFileSync(join(dest, 'sync.sh'), 'utf8')).toContain('v1');
+    expect(statSync(join(dest, 'sync.sh')).mode & 0o111).not.toBe(0);
+    writeFileSync(src, '#!/bin/sh\necho v2\n');
+    installRecyclarrScript(src, dest);
+    expect(readFileSync(join(dest, 'sync.sh'), 'utf8')).toContain('v2');
+  });
+
+  it('sem script (dev/testes) não faz nada', () => {
+    expect(installRecyclarrScript(undefined, tmp())).toBe(false);
+    expect(installRecyclarrScript('/nao/existe.sh', tmp())).toBe(false);
   });
 });

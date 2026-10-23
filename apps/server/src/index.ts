@@ -17,6 +17,7 @@ if (process.argv[2] === 'init') {
     secretsDir: config.MEDIASTACK_SECRETS_DIR,
     configRoot: config.MEDIASTACK_CONFIG_ROOT,
     torrentPort: config.MEDIASTACK_TORRENT_PORT,
+    recyclarrScript: config.MEDIASTACK_RECYCLARR_SCRIPT,
     dataRoot: config.MEDIASTACK_DATA_ROOT,
     owner:
       config.PUID !== undefined && config.PGID !== undefined

@@ -8,6 +8,7 @@ const schema = z.object({
   MEDIASTACK_CONFIG_ROOT: z.string().default('/configs'),
   PUID: z.coerce.number().int().optional(),
   PGID: z.coerce.number().int().optional(),
+  MEDIASTACK_RECYCLARR_SCRIPT: z.string().default('/app/recyclarr/sync.sh'),
   MEDIASTACK_RECYCLARR_DIR: z.string().default('/recyclarr'),
   MEDIASTACK_DATA_ROOT: z.string().optional(),
   MEDIASTACK_TORRENT_PORT: z.coerce.number().int().default(6882),

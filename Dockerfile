@@ -14,6 +14,8 @@ COPY --from=build /out/node_modules ./node_modules
 COPY --from=build /out/dist ./dist
 COPY --from=build /out/package.json ./package.json
 COPY --from=build /repo/apps/web/dist ./web
+# Script do Recyclarr: o init copia-o para a pasta partilhada (sem montar ficheiros do repositório).
+COPY --from=build /repo/deploy/recyclarr/sync.sh ./recyclarr/sync.sh
 RUN mkdir /config && chown node:node /config
 USER node
 EXPOSE 8080
