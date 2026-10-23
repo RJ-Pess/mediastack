@@ -18,5 +18,9 @@ if (process.argv[2] === 'init') {
 } else {
   const app = await buildApp(config);
   await app.listen({ port: config.PORT, host: '0.0.0.0' });
-  void app.reconciler.runWithRetry();
+  void app.reconciler.runWithRetry().then(async () => {
+    // Primeira aplicação do estado desejado por omissão; daí em diante, drift periódico.
+    await app.planner.bootstrap();
+    setInterval(() => void app.planner.checkDrift().catch(() => undefined), 5 * 60_000);
+  });
 }

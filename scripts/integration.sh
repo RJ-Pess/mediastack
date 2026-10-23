@@ -59,4 +59,23 @@ api http://bazarr:6767/api/system/settings "--header=X-API-KEY: $(key bazarr.key
 R2=$(curl -s -X POST "localhost:$PORT/api/reconcile")
 grep -qE '"result":"(created|updated)"' <<<"$R2" && fail "segundo reconcile alterou algo: $R2"
 
-echo "OK: stack ligado e idempotente"
+# 6. Plan/apply: mudar a categoria e um limite no Cais altera o valor real nos serviços
+CAIS="localhost:$PORT"
+json() { python3 -c "import sys,json;d=json.load(sys.stdin);$1"; }
+D=$(curl -s "$CAIS/api/desired" | json "d['downloads']['categories']['tv']='series';d['downloads']['downKiBps']=2048;print(json.dumps(d))")
+curl -s -X PUT -H 'Content-Type: application/json' -d "$D" "$CAIS/api/desired" >/dev/null
+PLAN=$(curl -s "$CAIS/api/plan")
+echo "$PLAN" | json "assert {c['fieldId'] for c in d['changes']}>={'sonarr.downloadclient.category','qbittorrent.limit.down'}, d" || fail "plan sem as alterações esperadas: $PLAN"
+curl -s -X POST -H 'Content-Type: application/json' -d '{}' "$CAIS/api/apply" | json "assert not d['failed'], d" || fail "apply falhou"
+api http://sonarr:8989/api/v3/downloadclient "$(H sonarr)" | grep -q '"value": "series"' || fail "categoria não mudou no Sonarr"
+curl -s "$CAIS/api/plan" | json "assert d['changes']==[] and d['errors']==[], d" || fail "segundo plan não está vazio"
+
+# 7. Drift: alteração direta no qBittorrent é detetada
+QB="http://qbittorrent:8080/api/v2"
+SID=$(docker exec cais wget -S -qO- --post-data="username=cais&password=$(key qbittorrent.password)" "$QB/auth/login" 2>&1 | sed -n 's/.*set-cookie: \([^;]*\).*/\1/Ip' | head -1)
+docker exec cais wget -qO- --header="Cookie: $SID" --post-data='json={"up_limit":524288}' "$QB/app/setPreferences" >/dev/null
+curl -s "$CAIS/api/drift" | json "assert [c['fieldId'] for c in d['changes']]==['qbittorrent.limit.up'], d" || fail "drift não detetado"
+curl -s -X POST -H 'Content-Type: application/json' -d '{"fieldId":"qbittorrent.limit.up"}' "$CAIS/api/drift/adopt" | json "assert d['downloads']['upKiBps']==512, d" || fail "adopt falhou"
+curl -s "$CAIS/api/drift" | json "assert d['changes']==[], d" || fail "drift persiste depois de adotar"
+
+echo "OK: stack ligado, plan/apply idempotente e drift detetado"
