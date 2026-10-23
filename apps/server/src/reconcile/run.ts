@@ -16,8 +16,9 @@ export function createReconciler(
 ) {
   const state: ReconcileState = { running: false, lastRun: null, steps: [], error: null };
 
-  async function run(): Promise<ReconcileState> {
-    if (state.running) return state;
+  let current: Promise<ReconcileState> | null = null;
+
+  async function execute(): Promise<ReconcileState> {
     state.running = true;
     try {
       state.steps = await wireServices(
@@ -34,6 +35,25 @@ export function createReconciler(
       state.lastRun = new Date().toISOString();
     }
     return state;
+  }
+
+  /**
+   * Corre um reconcile. Se já houver um a correr, espera por ele e corre outro a seguir:
+   * o pedido pode ter sido feito porque algo mudou (ex.: o Seerr acabou de ser ligado ao
+   * Jellyfin) e a execução em curso já não o vê.
+   */
+  async function run(): Promise<ReconcileState> {
+    const previous = current;
+    const next = (async () => {
+      if (previous) await previous.catch(() => undefined);
+      return execute();
+    })();
+    current = next;
+    try {
+      return await next;
+    } finally {
+      if (current === next) current = null;
+    }
   }
 
   /** Tenta até os serviços estarem prontos (backoff linear, máx. ~2 min). */
