@@ -25,9 +25,15 @@ ENV
 trap cleanup EXIT
 
 "${COMPOSE[@]}" up -d >/dev/null
+JAR="$WORK/cookies.txt"
+c() { curl -s -b "$JAR" -c "$JAR" -H 'Content-Type: application/json' "$@"; }
+for _ in $(seq 1 30); do curl -sf "localhost:$PORT/healthz" >/dev/null && break; sleep 2; done
+# 0. Sem sessão a API está fechada; o setup cria o admin e abre a sessão
+[ "$(curl -s -o /dev/null -w '%{http_code}' "localhost:$PORT/api/plan")" = 401 ] || fail "API acessível sem login"
+c -X POST -d '{"username":"admin","password":"password-de-teste-123"}' "localhost:$PORT/api/auth/setup" | grep -q '"user":"admin"' || fail "setup do admin falhou"
 echo "à espera do primeiro reconcile..."
 for _ in $(seq 1 40); do
-  R=$(curl -s "localhost:$PORT/api/reconcile" || true)
+  R=$(c "localhost:$PORT/api/reconcile" || true)
   if grep -q '"lastRun":"' <<<"$R" && grep -q '"error":null' <<<"$R"; then break; fi
   sleep 6
 done
@@ -37,6 +43,10 @@ json() { python3 -c "import sys,json;d=json.load(sys.stdin);$1"; }
 api() { docker exec cais wget -qO- "${@:2}" "$1"; }
 key() { cat "$WORK/cfg/cais/secrets/$1"; }
 H() { echo "--header=X-Api-Key: $(key "$1.key")"; }
+
+# O estado por omissão é aplicado logo a seguir ao reconcile; esperar pela auditoria
+for _ in $(seq 1 30); do c "localhost:$PORT/api/audit" | grep -q 'fieldId' && break; sleep 2; done
+c "localhost:$PORT/api/audit" | grep -q '"status":"error"' && fail "apply inicial com erros: $(c "localhost:$PORT/api/audit")"
 
 # 1. Cada serviço aceita a chave gerada
 for s in sonarr:8989:v3 radarr:7878:v3 prowlarr:9696:v1; do
@@ -57,7 +67,7 @@ api http://bazarr:6767/api/system/settings "--header=X-API-KEY: $(key bazarr.key
   python3 -c "import sys,json;d=json.load(sys.stdin);assert d['general']['use_sonarr'] and d['general']['use_radarr'] and d['sonarr']['ip']=='sonarr' and d['radarr']['ip']=='radarr'" ||
   fail "Bazarr não está ligado ao Sonarr/Radarr"
 # 5. Idempotência: o segundo reconcile não altera nada
-R2=$(curl -s -X POST "localhost:$PORT/api/reconcile")
+R2=$(c -X POST -d '{}' "localhost:$PORT/api/reconcile")
 grep -qE '"result":"(created|updated)"' <<<"$R2" && fail "segundo reconcile alterou algo: $R2"
 
 # 5b. O estado por omissão foi aplicado no arranque: perfil Cais (pt, en) é o perfil por omissão
@@ -66,21 +76,29 @@ BPROF | json "p=[x for x in d if x['name']=='Cais'];assert [i['language'] for i 
 
 # 6. Plan/apply: mudar a categoria e um limite no Cais altera o valor real nos serviços
 CAIS="localhost:$PORT"
-D=$(curl -s "$CAIS/api/desired" | json "d['downloads']['categories']['tv']='series';d['downloads']['downKiBps']=2048;d['subtitles']['languages']=['pt','pb'];print(json.dumps(d))")
-curl -s -X PUT -H 'Content-Type: application/json' -d "$D" "$CAIS/api/desired" >/dev/null
-PLAN=$(curl -s "$CAIS/api/plan")
+D=$(c "$CAIS/api/desired" | json "d['downloads']['categories']['tv']='series';d['downloads']['downKiBps']=2048;d['subtitles']['languages']=['pt','pb'];print(json.dumps(d))")
+c -X PUT -d "$D" "$CAIS/api/desired" >/dev/null
+PLAN=$(c "$CAIS/api/plan")
 echo "$PLAN" | json "assert {c['fieldId'] for c in d['changes']}>={'sonarr.downloadclient.category','qbittorrent.limit.down'}, d" || fail "plan sem as alterações esperadas: $PLAN"
-curl -s -X POST -H 'Content-Type: application/json' -d '{}' "$CAIS/api/apply" | json "assert not d['failed'], d" || fail "apply falhou"
+c -X POST -d '{}' "$CAIS/api/apply" | json "assert not d['failed'], d" || fail "apply falhou"
 api http://sonarr:8989/api/v3/downloadclient "$(H sonarr)" | grep -q '"value": "series"' || fail "categoria não mudou no Sonarr"
 BPROF | json "p=[x for x in d if x['name']=='Cais'];assert [i['language'] for i in p[0]['items']]==['pt','pb'], d" || fail "idiomas não mudaram no Bazarr"
-curl -s "$CAIS/api/plan" | json "assert d['changes']==[] and d['errors']==[], d" || fail "segundo plan não está vazio"
+c "$CAIS/api/plan" | json "assert d['changes']==[] and d['errors']==[], d" || fail "segundo plan não está vazio"
 
 # 7. Drift: alteração direta no qBittorrent é detetada
 QB="http://qbittorrent:8080/api/v2"
 SID=$(docker exec cais wget -S -qO- --post-data="username=cais&password=$(key qbittorrent.password)" "$QB/auth/login" 2>&1 | sed -n 's/.*set-cookie: \([^;]*\).*/\1/Ip' | head -1)
 docker exec cais wget -qO- --header="Cookie: $SID" --post-data='json={"up_limit":524288}' "$QB/app/setPreferences" >/dev/null
-curl -s "$CAIS/api/drift" | json "assert [c['fieldId'] for c in d['changes']]==['qbittorrent.limit.up'], d" || fail "drift não detetado"
-curl -s -X POST -H 'Content-Type: application/json' -d '{"fieldId":"qbittorrent.limit.up"}' "$CAIS/api/drift/adopt" | json "assert d['downloads']['upKiBps']==512, d" || fail "adopt falhou"
-curl -s "$CAIS/api/drift" | json "assert d['changes']==[], d" || fail "drift persiste depois de adotar"
+c "$CAIS/api/drift" | json "assert [c['fieldId'] for c in d['changes']]==['qbittorrent.limit.up'], d" || fail "drift não detetado"
+c -X POST -d '{"fieldId":"qbittorrent.limit.up"}' "$CAIS/api/drift/adopt" | json "assert d['downloads']['upKiBps']==512, d" || fail "adopt falhou"
+c "$CAIS/api/drift" | json "assert d['changes']==[], d" || fail "drift persiste depois de adotar"
 
-echo "OK: stack ligado, plan/apply idempotente e drift detetado"
+# 8. Hardlinks: o mount único funciona; dois mounts separados geram aviso (critério 4)
+HL() { docker run --rm --user 0 "$@" cais:dev node dist/index.js hardlink-check /data/torrents /data/media; }
+c -X POST -d "{}" "$CAIS/api/storage/hardlink-check" | json "assert all(x['ok'] for x in d), d" || fail "hardlinks falham no stack (mount único)"
+docker volume create cais-hl-a >/dev/null; docker volume create cais-hl-b >/dev/null
+OUT=$(HL -v cais-hl-a:/data/torrents -v cais-hl-b:/data/media || true)
+docker volume rm cais-hl-a cais-hl-b >/dev/null
+grep -q '"reason":"different_mounts"' <<<"$OUT" || fail "mount partido não foi detetado: $OUT"
+
+echo "OK: ligações, login, plan/apply idempotente, drift e verificação de hardlinks"

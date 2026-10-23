@@ -23,12 +23,74 @@ export class Store {
     this.db = new DatabaseSync(path);
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS desired (id INTEGER PRIMARY KEY CHECK (id = 1), json TEXT NOT NULL, updated_at TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS sessions (
+        token_hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL, expires_at INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS secrets (name TEXT PRIMARY KEY, value TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS audit (
         id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, actor TEXT NOT NULL,
         field_id TEXT NOT NULL, service TEXT NOT NULL, before TEXT, after TEXT,
         status TEXT NOT NULL, error TEXT
       );
     `);
+  }
+
+  userCount(): number {
+    return (this.db.prepare('SELECT COUNT(*) AS n FROM users').get() as { n: number }).n;
+  }
+
+  createUser(username: string, passwordHash: string): number {
+    const r = this.db
+      .prepare('INSERT INTO users (username, password_hash) VALUES (?, ?)')
+      .run(username, passwordHash);
+    return Number(r.lastInsertRowid);
+  }
+
+  findUser(username: string): { id: number; passwordHash: string } | undefined {
+    const r = this.db
+      .prepare('SELECT id, password_hash FROM users WHERE username = ?')
+      .get(username) as { id: number; password_hash: string } | undefined;
+    return r && { id: r.id, passwordHash: r.password_hash };
+  }
+
+  createSession(tokenHash: string, userId: number, expiresAt: number): void {
+    this.db.prepare('DELETE FROM sessions WHERE expires_at < ?').run(Date.now());
+    this.db
+      .prepare('INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)')
+      .run(tokenHash, userId, expiresAt);
+  }
+
+  sessionUser(tokenHash: string): { userId: number; username: string } | undefined {
+    const r = this.db
+      .prepare(
+        `SELECT u.id AS userId, u.username FROM sessions s JOIN users u ON u.id = s.user_id
+         WHERE s.token_hash = ? AND s.expires_at > ?`,
+      )
+      .get(tokenHash, Date.now()) as { userId: number; username: string } | undefined;
+    return r;
+  }
+
+  deleteSession(tokenHash: string): void {
+    this.db.prepare('DELETE FROM sessions WHERE token_hash = ?').run(tokenHash);
+  }
+
+  /** Segredos de terceiros (já cifrados pelo chamador). */
+  putSecret(name: string, ciphertext: string): void {
+    this.db
+      .prepare(
+        'INSERT INTO secrets (name, value) VALUES (?, ?) ON CONFLICT(name) DO UPDATE SET value = excluded.value',
+      )
+      .run(name, ciphertext);
+  }
+
+  getSecret(name: string): string | undefined {
+    return (
+      this.db.prepare('SELECT value FROM secrets WHERE name = ?').get(name) as
+        { value: string } | undefined
+    )?.value;
   }
 
   hasDesired(): boolean {

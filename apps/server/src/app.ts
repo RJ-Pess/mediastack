@@ -3,13 +3,23 @@ import { resolve } from 'node:path';
 import fastifyStatic from '@fastify/static';
 import Fastify from 'fastify';
 import type { Config } from './config.js';
+import { registerAuth } from './auth.js';
 import { createPlanService } from './plan/service.js';
+import { checkHardlink } from './storage/hardlink.js';
 import { createReconciler } from './reconcile/run.js';
 import { probeAll, serviceDefs } from './services.js';
 
 export async function buildApp(config: Config, fetchImpl?: typeof fetch) {
   const app = Fastify({ logger: true });
   const defs = serviceDefs(config);
+  // Aceita POST com corpo JSON vazio (ações sem parâmetros).
+  app.addContentTypeParser('application/json', { parseAs: 'string' }, (_req, body, done) => {
+    try {
+      done(null, body ? JSON.parse(body as string) : {});
+    } catch (err) {
+      done(err as Error);
+    }
+  });
 
   const reconciler = createReconciler(config, fetchImpl);
   app.get('/api/reconcile', async () => reconciler.state);
@@ -18,6 +28,7 @@ export async function buildApp(config: Config, fetchImpl?: typeof fetch) {
 
   const planner = createPlanService(config, undefined, fetchImpl);
   app.decorate('planner', planner);
+  await registerAuth(app, planner.store);
   const failure = (err: unknown) => (err instanceof Error ? err.message : String(err));
   app.get('/api/desired', async () => planner.getDesired());
   app.put('/api/desired', async (req, reply) => {
@@ -26,6 +37,18 @@ export async function buildApp(config: Config, fetchImpl?: typeof fetch) {
     } catch (err) {
       return reply.code(400).send({ error: failure(err) });
     }
+  });
+  // Verifica se downloads e bibliotecas estão no mesmo volume (hardlinks / moves atómicos).
+  app.post('/api/storage/hardlink-check', async () => {
+    const d = planner.getDesired();
+    const targets = [d.storage.tvRoot, d.storage.moviesRoot];
+    return Promise.all(
+      targets.map(async (to) => ({
+        from: d.downloads.torrentsRoot,
+        to,
+        ...(await checkHardlink(d.downloads.torrentsRoot, to)),
+      })),
+    );
   });
   app.get('/api/plan', async () => planner.plan());
   app.post('/api/apply', async (req) => {

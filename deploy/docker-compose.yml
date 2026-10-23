@@ -41,6 +41,7 @@ services:
     cap_drop: [ALL]
     volumes:
       - ${CONFIG_ROOT:-/DATA/AppData/Media/cais}/cais/data:/config
+      - ${DATA_ROOT:-/DATA/Disco_EXT/Entretenimento}:/data
       - ${CONFIG_ROOT:-/DATA/AppData/Media/cais}/cais/secrets:/run/cais:ro
     depends_on:
       cais-init: { condition: service_completed_successfully }

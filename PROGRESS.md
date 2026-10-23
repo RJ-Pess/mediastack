@@ -12,6 +12,7 @@
 - [ ] Confirmar nome/tag da imagem do Byparr e do Seerr (`ghcr.io/seerr-team/seerr`)
 
 ## Fase 2 — Bootstrap (quase completa)
+
 - [x] `cais-init` (mesma imagem, `node dist/index.js init`): gera chaves (32 hex) e a password do qBittorrent em `cais/secrets/` (nunca sobrescreve), cria `/data/{torrents,media}/{tv,movies}` e dá a posse a PUID:PGID. Corre como root só com CHOWN/DAC_OVERRIDE/FOWNER.
 - [x] Sonarr/Radarr/Prowlarr recebem a chave por `FILE__<SVC>__AUTH__APIKEY` (convenção linuxserver) + `<SVC>__AUTH__*`. Verificado com Sonarr 4.0.20, Radarr 6.4.4, Prowlarr 2.6.5: as variáveis de override funcionam, sem config.xml.
 - [x] qBittorrent: `qBittorrent.conf` (PBKDF2-SHA512) + `categories.json` pré-gerados; login verificado.
@@ -23,6 +24,7 @@
 - [ ] Teste de integração ainda não corre no CI (descarrega ~6 imagens).
 
 ## Fase 3 — Plan/Apply (em curso)
+
 - [x] Estado desejado (Zod) em SQLite (`node:sqlite`, sem módulos nativos) + tabela de auditoria. Endpoints: `GET/PUT /api/desired`, `GET /api/plan`, `POST /api/apply`, `GET /api/audit`, `GET /api/drift`, `POST /api/drift/adopt`.
 - [x] Modelo por "campos" (`plan/fields.ts`): cada campo sabe ler o real, escrever e adotar. Plan = desejado vs real; apply = escrever só o que difere (idempotente, 3 tentativas, auditoria por escrita); drift = plan sobre o estado já aplicado (verificação de 5 em 5 min e a pedido).
 - [x] Armazenamento: root folders Sonarr/Radarr (+ bibliotecas extra; só adiciona, nunca remove).
@@ -32,7 +34,14 @@
 - [x] Integração (`pnpm test:integration`) cobre critérios 2 e 3: mudar categoria/limite/idiomas → valor real muda; 2.º plan vazio; alteração direta no qBittorrent → drift; adotar resolve.
 - [ ] Indexadores (listar/ativar/testar no Prowlarr) — por fazer.
 - [ ] Horários de limites de velocidade e seeding por tempo — por fazer.
-- [ ] **Autenticação do Cais (argon2id + cookie httpOnly) — por fazer; a API está aberta na porta publicada.** Prioridade no início da Fase 4 (o Node 22 não tem argon2 nativo: usar `@node-rs/argon2`).
+- [x] Autenticação do Cais (feita na Fase 4): argon2id (`@node-rs/argon2`), cookie httpOnly + SameSite=Strict, sessões em SQLite (hash SHA-256 do token), bloqueio após 5 falhas, todas as rotas `/api` (exceto `/api/auth/*`) exigem sessão.
+
+## Fase 4 — UI completa (em curso)
+
+- [x] Login/setup do admin (`/api/auth/{setup,login,logout,me}`); `cais.secret` gerado pelo init; cofre AES-256-GCM (`crypto.ts`) para credenciais de terceiros.
+- [x] Verificação de hardlinks (`POST /api/storage/hardlink-check`, CLI `hardlink-check`): cria ficheiro, faz link, compara dev/inode. Critério 4 coberto no teste de integração (dois volumes → `different_mounts`).
+- [ ] Seerr (precisa Jellyfin; plano: Jellyfin real no teste, completar o setup via `/auth/jellyfin` + `/settings/initialize`).
+- [ ] Wizard, painel, atividade, calendário, biblioteca, pedidos, ⌘K, design final.
 
 ## Decisões
 

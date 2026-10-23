@@ -1,8 +1,16 @@
 import { buildApp } from './app.js';
 import { loadConfig } from './config.js';
+import { checkHardlink } from './storage/hardlink.js';
 import { runInit } from './init/index.js';
 
 const config = loadConfig();
+
+if (process.argv[2] === 'hardlink-check') {
+  // Usado pelo teste de integração para simular mounts partidos.
+  const r = await checkHardlink(process.argv[3] ?? '', process.argv[4] ?? '');
+  console.log(JSON.stringify(r));
+  process.exit(r.ok ? 0 : 1);
+}
 
 if (process.argv[2] === 'init') {
   runInit({
