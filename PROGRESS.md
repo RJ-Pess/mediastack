@@ -19,7 +19,7 @@
 - [x] Bazarr: `config/config.yaml` com `auth.apikey` pré-gerado (Bazarr 1.6.2 aceita).
 - [x] Reconciliador (arranque com retry + `POST /api/reconcile`): Sonarr/Radarr→qBittorrent + root folders; Prowlarr tag `cloudflare`, proxy Byparr, apps Sonarr/Radarr (`fullSync`); Bazarr→Sonarr/Radarr. Idempotente.
 - [x] `pnpm test:integration` (`scripts/integration.sh`): stack real num ambiente limpo, verifica tudo pelas APIs e que o 2.º reconcile não altera nada. Passa.
-- [ ] **Seerr**: o Seerr 3.5.1 só conclui o setup autenticando num media server (`/auth/local` devolve 403 antes disso). Precisa das credenciais do Jellyfin (wizard, Fase 4). Para o teste de integração será preciso um Jellyfin falso ou real. Pendente.
+- [x] Seerr: ver Fase 4.
 - [ ] Perfil de idiomas do Bazarr (pt-PT + en) — entra com as definições de Legendas (Fase 3).
 - [ ] Teste de integração ainda não corre no CI (descarrega ~6 imagens).
 
@@ -40,7 +40,7 @@
 
 - [x] Login/setup do admin (`/api/auth/{setup,login,logout,me}`); `cais.secret` gerado pelo init; cofre AES-256-GCM (`crypto.ts`) para credenciais de terceiros.
 - [x] Verificação de hardlinks (`POST /api/storage/hardlink-check`, CLI `hardlink-check`): cria ficheiro, faz link, compara dev/inode. Critério 4 coberto no teste de integração (dois volumes → `different_mounts`).
-- [ ] Seerr (precisa Jellyfin; plano: Jellyfin real no teste, completar o setup via `/auth/jellyfin` + `/settings/initialize`).
+- [x] Seerr: `POST /api/seerr/setup` autentica no Jellyfin (credenciais não guardadas), lê a API key do Seerr, faz `/settings/initialize` (a página `/setup` nunca aparece) e guarda a key cifrada (AES-GCM, `CAIS_SECRET`/`cais.secret`). O reconcile liga o Seerr ao Sonarr/Radarr (perfil `HD-1080p` se existir, senão o primeiro; TRaSH na Fase 5). Testado com Jellyfin 12.3 real (`deploy/docker-compose.test.yml`, só para testes).
 - [ ] Wizard, painel, atividade, calendário, biblioteca, pedidos, ⌘K, design final.
 
 ## Decisões

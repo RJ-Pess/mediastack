@@ -1,11 +1,13 @@
 import type { Config } from '../config.js';
 import type { SecretName } from '../init/secrets.js';
 import { BazarrClient } from './bazarr.js';
+import { SeerrClient } from './seerr.js';
 import { ArrClient, type ArrResource, type EnsureResult } from './arr.js';
 
 export interface StepResult {
   step: string;
-  result: EnsureResult;
+  /** `skipped`: falta um pré-requisito (ex.: o Seerr ainda não foi ligado ao Jellyfin). */
+  result: EnsureResult | 'skipped';
 }
 
 type Secrets = Record<SecretName, string>;
@@ -17,6 +19,7 @@ export async function wireServices(
   c: Config,
   s: Secrets,
   fetchImpl: typeof fetch = fetch,
+  seerrKey?: string,
 ): Promise<StepResult[]> {
   const sonarr = new ArrClient('Sonarr', c.CAIS_SONARR_URL, s['sonarr.key'], 'v3', fetchImpl);
   const radarr = new ArrClient('Radarr', c.CAIS_RADARR_URL, s['radarr.key'], 'v3', fetchImpl);
@@ -28,7 +31,7 @@ export async function wireServices(
     fetchImpl,
   );
   const out: StepResult[] = [];
-  const record = (step: string, result: EnsureResult) => out.push({ step, result });
+  const record = (step: string, result: StepResult['result']) => out.push({ step, result });
 
   // Sonarr / Radarr -> qBittorrent + root folders
   for (const [app, client, categoryField, category, root] of [
@@ -114,5 +117,37 @@ export async function wireServices(
       radarr: link(c.CAIS_RADARR_URL, s['radarr.key']),
     }),
   );
+
+  // Seerr -> Sonarr / Radarr (só depois de o Seerr estar ligado ao Jellyfin)
+  if (!seerrKey) {
+    record('Seerr → Sonarr/Radarr', 'skipped');
+  } else {
+    const seerr = new SeerrClient(c.CAIS_SEERR_URL, seerrKey, fetchImpl);
+    for (const [kind, client, url, key, root] of [
+      ['sonarr', sonarr, c.CAIS_SONARR_URL, s['sonarr.key'], '/data/media/tv'],
+      ['radarr', radarr, c.CAIS_RADARR_URL, s['radarr.key'], '/data/media/movies'],
+    ] as const) {
+      // Perfil por omissão: "HD-1080p" se existir, senão o primeiro (os perfis TRaSH chegam na Fase 5).
+      const profiles = await client.get<{ id: number; name: string }[]>('qualityprofile');
+      const profile = profiles.find((p) => p.name === 'HD-1080p') ?? profiles[0];
+      if (!profile) throw new Error(`${kind}: sem perfis de qualidade`);
+      const u = new URL(url);
+      record(
+        `Seerr → ${kind === 'sonarr' ? 'Sonarr' : 'Radarr'}`,
+        await seerr.ensureArr(kind, {
+          name: `${MANAGED_PREFIX} ${kind === 'sonarr' ? 'Sonarr' : 'Radarr'}`,
+          hostname: u.hostname,
+          port: Number(u.port || 80),
+          apiKey: key,
+          useSsl: false,
+          baseUrl: '',
+          activeProfileId: profile.id,
+          activeProfileName: profile.name,
+          activeDirectory: root,
+          isDefault: true,
+        }),
+      );
+    }
+  }
   return out;
 }

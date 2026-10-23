@@ -1,0 +1,12 @@
+# Só para testes de integração: um Jellyfin real e vazio, externo ao stack em produção.
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:latest
+    container_name: jellyfin
+    networks: [cais]
+    ports: ['18096:8096']
+  seerr:
+    ports: ['15055:5055']
+
+networks:
+  cais: {}

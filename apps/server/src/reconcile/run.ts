@@ -9,14 +9,23 @@ export interface ReconcileState {
   error: string | null;
 }
 
-export function createReconciler(config: Config, fetchImpl?: typeof fetch) {
+export function createReconciler(
+  config: Config,
+  fetchImpl?: typeof fetch,
+  getSeerrKey: () => string | undefined = () => undefined,
+) {
   const state: ReconcileState = { running: false, lastRun: null, steps: [], error: null };
 
   async function run(): Promise<ReconcileState> {
     if (state.running) return state;
     state.running = true;
     try {
-      state.steps = await wireServices(config, readSecrets(config.CAIS_SECRETS_DIR), fetchImpl);
+      state.steps = await wireServices(
+        config,
+        readSecrets(config.CAIS_SECRETS_DIR),
+        fetchImpl,
+        getSeerrKey(),
+      );
       state.error = null;
     } catch (err) {
       state.error = err instanceof Error ? err.message : String(err);

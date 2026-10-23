@@ -7,7 +7,8 @@ cd "$(dirname "$0")/.."
 WORK="${CAIS_IT_DIR:-$HOME/cais-it}" # tem de estar num caminho partilhado com a VM do Docker
 PROJECT=caistest
 PORT=18088
-COMPOSE=(docker compose -f deploy/docker-compose.yml --env-file "$WORK/.env" -p "$PROJECT")
+SEERR_PORT=15055
+COMPOSE=(docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.test.yml --env-file "$WORK/.env" -p "$PROJECT")
 fail() { echo "FALHOU: $*" >&2; exit 1; }
 cleanup() { "${COMPOSE[@]}" down -v >/dev/null 2>&1 || true; }
 
@@ -92,6 +93,25 @@ docker exec cais wget -qO- --header="Cookie: $SID" --post-data='json={"up_limit"
 c "$CAIS/api/drift" | json "assert [c['fieldId'] for c in d['changes']]==['qbittorrent.limit.up'], d" || fail "drift não detetado"
 c -X POST -d '{"fieldId":"qbittorrent.limit.up"}' "$CAIS/api/drift/adopt" | json "assert d['downloads']['upKiBps']==512, d" || fail "adopt falhou"
 c "$CAIS/api/drift" | json "assert d['changes']==[], d" || fail "drift persiste depois de adotar"
+
+# 7b. Seerr: o setup nunca passa pela página /setup; completa-se com o admin do Jellyfin
+JF=localhost:18096
+for _ in $(seq 1 60); do [ "$(curl -s $JF/health)" = Healthy ] && break; sleep 3; done
+[ "$(curl -s $JF/health)" = Healthy ] || fail "Jellyfin não ficou saudável"
+JH='Content-Type: application/json'
+curl -sf -X POST -H "$JH" -d '{"UICulture":"pt-PT","MetadataCountryCode":"PT","PreferredMetadataLanguage":"pt"}' $JF/Startup/Configuration
+curl -sf $JF/Startup/User >/dev/null
+curl -sf -X POST -H "$JH" -d '{"Name":"admin","Password":"jf-password-123"}' $JF/Startup/User
+curl -sf -X POST -H "$JH" -d '{"EnableRemoteAccess":true,"EnableAutomaticPortMapping":false}' $JF/Startup/RemoteAccess
+curl -sf -X POST $JF/Startup/Complete
+c "$CAIS/api/seerr" | json "assert d=={'initialized':False,'linked':False}, d" || fail "Seerr devia estar por inicializar"
+c -X POST -d '{"hostname":"jellyfin","port":8096,"username":"admin","password":"jf-password-123"}' "$CAIS/api/seerr/setup" | json "assert d['error'] is None and any(s['step']=='Seerr → Sonarr' and s['result']=='created' for s in d['steps']), d" || fail "setup do Seerr falhou"
+c "$CAIS/api/seerr" | json "assert d=={'initialized':True,'linked':True}, d" || fail "Seerr não ficou inicializado"
+SK=$(python3 -c "import json;print(json.load(open('$WORK/cfg/seerr/settings.json'))['main']['apiKey'])")
+for k in sonarr radarr; do
+  curl -s -H "X-Api-Key: $SK" "localhost:$SEERR_PORT/api/v1/settings/$k" | grep -q 'Cais' || fail "Seerr sem $k"
+done
+c -X POST -d '{}' "$CAIS/api/reconcile" | grep -qE '"result":"(created|updated)"' && fail "reconcile com Seerr não é idempotente"
 
 # 8. Hardlinks: o mount único funciona; dois mounts separados geram aviso (critério 4)
 HL() { docker run --rm --user 0 "$@" cais:dev node dist/index.js hardlink-check /data/torrents /data/media; }

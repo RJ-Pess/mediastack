@@ -4,10 +4,24 @@ import fastifyStatic from '@fastify/static';
 import Fastify from 'fastify';
 import type { Config } from './config.js';
 import { registerAuth } from './auth.js';
+import { createVault } from './crypto.js';
+import { readSecrets } from './init/secrets.js';
+import { SeerrClient } from './reconcile/seerr.js';
+import { z } from 'zod';
 import { createPlanService } from './plan/service.js';
 import { checkHardlink } from './storage/hardlink.js';
 import { createReconciler } from './reconcile/run.js';
 import { probeAll, serviceDefs } from './services.js';
+
+const jellyfinSchema = z.object({
+  hostname: z.string().min(1),
+  port: z.number().int().min(1).max(65535).default(8096),
+  useSsl: z.boolean().default(false),
+  urlBase: z.string().optional(),
+  username: z.string().min(1),
+  password: z.string().min(1),
+  email: z.string().email().optional(),
+});
 
 export async function buildApp(config: Config, fetchImpl?: typeof fetch) {
   const app = Fastify({ logger: true });
@@ -21,12 +35,42 @@ export async function buildApp(config: Config, fetchImpl?: typeof fetch) {
     }
   });
 
-  const reconciler = createReconciler(config, fetchImpl);
+  const planner = createPlanService(config, undefined, fetchImpl);
+  // Cofre: chave derivada de CAIS_SECRET (env) ou do segredo gerado pelo init.
+  const vault = () =>
+    createVault(process.env.CAIS_SECRET ?? readSecrets(config.CAIS_SECRETS_DIR)['cais.secret']);
+  const SEERR_KEY = 'seerr.apikey';
+  const seerrKey = () => {
+    const blob = planner.store.getSecret(SEERR_KEY);
+    return blob ? vault().decrypt(blob) : undefined;
+  };
+  const reconciler = createReconciler(config, fetchImpl, seerrKey);
+  app.get('/api/seerr', async () => ({
+    initialized: await new SeerrClient(config.CAIS_SEERR_URL, null, fetchImpl).isInitialized(),
+    linked: seerrKey() !== undefined,
+  }));
+  // Completa o setup do Seerr com o admin do Jellyfin (as credenciais não são guardadas).
+  app.post('/api/seerr/setup', async (req, reply) => {
+    const parsed = jellyfinSchema.safeParse(req.body);
+    if (!parsed.success) return reply.code(400).send({ error: parsed.error.issues[0]?.message });
+    const seerr = new SeerrClient(config.CAIS_SEERR_URL, null, fetchImpl);
+    try {
+      if (await seerr.isInitialized()) {
+        return reply.code(409).send({ error: 'o Seerr já está inicializado' });
+      }
+      planner.store.putSecret(
+        SEERR_KEY,
+        vault().encrypt(await seerr.setupWithJellyfin(parsed.data)),
+      );
+    } catch (err) {
+      return reply.code(502).send({ error: failure(err) });
+    }
+    return reconciler.run();
+  });
   app.get('/api/reconcile', async () => reconciler.state);
   app.post('/api/reconcile', async () => reconciler.run());
   app.decorate('reconciler', reconciler);
 
-  const planner = createPlanService(config, undefined, fetchImpl);
   app.decorate('planner', planner);
   await registerAuth(app, planner.store);
   const failure = (err: unknown) => (err instanceof Error ? err.message : String(err));
