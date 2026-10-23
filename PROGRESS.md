@@ -1,6 +1,6 @@
 # Progresso — Cais
 
-Última atualização: 2026-10-23. Estado geral: **alfa**; fases 1–4 feitas, 5–6 por fazer; critério 5 (e2e) ainda a falhar no último passo.
+Última atualização: 2026-10-23. Estado geral: **alfa**; fases 1–4 feitas, 5–6 por fazer; critérios 1–5 verificados localmente.
 
 ## Critérios de aceitação
 
@@ -52,9 +52,9 @@
 - [ ] Botão "abrir UI nativa" por serviço (Avançado) — por fazer
 - [ ] Posters/backdrops do TMDB em grande nas páginas de pedidos (hoje só posters em grelha)
 
-### Critério 5 — investigação em curso
+### Critério 5 — notas
 
-O e2e (`pnpm test:e2e`, `KEEP=1` mantém o stack vivo para depuração) passa até pedir o filme pelo ⌘K, mas a fila do Radarr fica a 0 durante 4 min. Por verificar, por ordem: (1) o Seerr criou o filme no Radarr com busca automática? (2) o Prowlarr sincronizou o indexador falso para o Radarr? (3) o Radarr rejeita o release (parse do título/ano, perfil `HD-1080p`, tamanho, seeders)? (4) o Radarr falha ao entregar o `.torrent` ao qBittorrent? O indexador falso é `tests/mock-indexer`.
+Dois problemas encontrados pelo e2e e corrigidos: (1) `POST /api/seerr/setup` chamava `reconciler.run()`, que devolvia logo se já houvesse um reconcile a correr, deixando o Seerr sem Radarr/Sonarr — agora um pedido durante uma execução corre outra a seguir (teste unitário); (2) o passo do Jellyfin pode esperar pelo reconcile de arranque, por isso o teste dá-lhe até 90 s. `KEEP=1 pnpm test:e2e` mantém o stack vivo para depuração.
 
 ## Fase 5 — Qualidade e backups ☐
 
@@ -70,7 +70,7 @@ O e2e (`pnpm test:e2e`, `KEEP=1` mantém o stack vivo para depuração) passa at
 - [x] Licença MIT; README EN + PT-PT; CONTRIBUTING; SECURITY; templates de issue/PR; Dependabot (npm, docker, docker-compose, actions)
 - [x] Defaults genéricos no compose/`.env.example` (`DATA_ROOT` obrigatório, PUID/PGID 1000, TZ UTC, imagem `cais:local`); nada específico do host original
 - [x] CI para repositório público (só runners do GitHub): lint → typecheck → testes → build; integração; imagem amd64+arm64, Trivy (críticos), verificação não-root, push para GHCR com tags `sha` + semver. Workflow `e2e` manual/semanal.
-- [ ] Primeiro push para `RJ-Pess/cais` (público) e confirmar o CI; tornar o pacote GHCR público
+- [x] Publicado em `RJ-Pess/cais` (público). Falta: confirmar o CI todo verde (arm64, Trivy, push GHCR) e tornar o pacote GHCR público nas definições do GitHub
 - [ ] `packages/clients` ainda é um stub (clientes escritos à mão em `apps/server/src/reconcile/`)
 
 ## Decisões
