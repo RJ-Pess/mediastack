@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api, fmtBytes } from '../api';
+import { useLang, useT } from '../i18n';
 import { Card, Dot, PageHeader, Skeleton } from '../ui';
 
 interface ServiceStatus {
@@ -26,6 +27,8 @@ interface Drift {
 }
 
 export function Home() {
+  const t = useT();
+  const { locale } = useLang();
   const status = useQuery({
     queryKey: ['status'],
     queryFn: () => api<{ services: ServiceStatus[] }>('/api/status'),
@@ -46,14 +49,16 @@ export function Home() {
 
   return (
     <>
-      <PageHeader title="Início" />
+      <PageHeader title={t('Início')} />
       {drift.data && drift.data.changes.length > 0 && (
         <Link to="/definicoes" className="card mb-4 block" style={{ borderColor: 'var(--warn)' }}>
-          <Dot state="warn" /> {drift.data.changes.length} definições foram alteradas fora do Cais.
-          Rever em Definições.
+          <Dot state="warn" />{' '}
+          {t('{n} definições foram alteradas fora do Cais. Rever em Definições.', {
+            n: drift.data.changes.length,
+          })}
         </Link>
       )}
-      <h2 className="muted mb-3 text-sm font-medium uppercase tracking-wide">Serviços</h2>
+      <h2 className="muted mb-3 text-sm font-medium uppercase tracking-wide">{t('Serviços')}</h2>
       <ul className="mb-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
         {status.isLoading
           ? Array.from({ length: 7 }, (_, i) => <Skeleton key={i} className="h-16" />)
@@ -63,7 +68,7 @@ export function Home() {
                 <div className="min-w-0">
                   <p className="truncate font-medium">{s.name}</p>
                   <p className="muted truncate text-xs">
-                    {s.state === 'up' ? `${s.latencyMs} ms` : (s.detail ?? 'Sem resposta')}
+                    {s.state === 'up' ? `${s.latencyMs} ms` : (s.detail ?? t('Sem resposta'))}
                   </p>
                 </div>
               </li>
@@ -73,7 +78,7 @@ export function Home() {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="font-semibold">Atividade</h2>
+            <h2 className="font-semibold">{t('Atividade')}</h2>
             <span className="muted text-sm">{fmtBytes(speed)}/s</span>
           </div>
           {activity.isLoading ? (
@@ -89,7 +94,7 @@ export function Home() {
                     aria-valuenow={Math.round(a.progress * 100)}
                     aria-valuemin={0}
                     aria-valuemax={100}
-                    aria-label={`Progresso de ${a.title}`}
+                    aria-label={t('Progresso de {title}', { title: a.title })}
                   >
                     <span style={{ width: `${a.progress * 100}%` }} />
                   </div>
@@ -97,11 +102,11 @@ export function Home() {
               ))}
             </ul>
           ) : (
-            <p className="muted">Sem downloads ativos.</p>
+            <p className="muted">{t('Sem downloads ativos.')}</p>
           )}
         </Card>
         <Card>
-          <h2 className="mb-3 font-semibold">Próximos lançamentos</h2>
+          <h2 className="mb-3 font-semibold">{t('Próximos lançamentos')}</h2>
           {cal.isLoading ? (
             <Skeleton className="h-24" />
           ) : cal.data?.length ? (
@@ -113,13 +118,13 @@ export function Home() {
                     {c.subtitle && <span className="muted"> · {c.subtitle}</span>}
                   </span>
                   <time className="muted shrink-0" dateTime={c.date}>
-                    {new Date(c.date).toLocaleDateString('pt-PT')}
+                    {new Date(c.date).toLocaleDateString(locale)}
                   </time>
                 </li>
               ))}
             </ul>
           ) : (
-            <p className="muted">Nada agendado nas próximas semanas.</p>
+            <p className="muted">{t('Nada agendado nas próximas semanas.')}</p>
           )}
         </Card>
       </div>

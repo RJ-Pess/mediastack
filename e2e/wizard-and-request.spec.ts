@@ -6,7 +6,13 @@ const secret = (name: string) => readFileSync(`${WORK}/cfg/cais/secrets/${name}`
 const RADARR = 'http://localhost:17878';
 const PROWLARR = 'http://localhost:19696';
 
-async function arr<T>(base: string, ver: string, key: string, path: string, init?: RequestInit): Promise<T> {
+async function arr<T>(
+  base: string,
+  ver: string,
+  key: string,
+  path: string,
+  init?: RequestInit,
+): Promise<T> {
   const res = await fetch(`${base}/api/${ver}/${path}`, {
     ...init,
     headers: { 'X-Api-Key': key, 'Content-Type': 'application/json' },
@@ -18,14 +24,27 @@ async function arr<T>(base: string, ver: string, key: string, path: string, init
 /** Regista o indexador falso no Prowlarr (o sync leva-o ao Radarr). Sem conteúdo real. */
 async function addMockIndexer() {
   const key = secret('prowlarr.key');
-  const schema = await arr<{ implementation: string; fields: { name: string; value?: unknown }[] }[]>(PROWLARR, 'v1', key, 'indexer/schema');
+  const schema = await arr<
+    { implementation: string; fields: { name: string; value?: unknown }[] }[]
+  >(PROWLARR, 'v1', key, 'indexer/schema');
   const torznab = schema.find((s) => s.implementation === 'Torznab')!;
   const profiles = await arr<{ id: number }[]>(PROWLARR, 'v1', key, 'appprofile');
-  const values: Record<string, unknown> = { baseUrl: 'http://mock-indexer:9000', apiPath: '/api', apiKey: 'mock', categories: [2000, 2040, 5000, 5040] };
+  const values: Record<string, unknown> = {
+    baseUrl: 'http://mock-indexer:9000',
+    apiPath: '/api',
+    apiKey: 'mock',
+    categories: [2000, 2040, 5000, 5040],
+  };
   await arr(PROWLARR, 'v1', key, 'indexer?forceSave=true', {
     method: 'POST',
     body: JSON.stringify({
-      ...torznab, name: 'Mock', enable: true, appProfileId: profiles[0]!.id, protocol: 'torrent', priority: 25, tags: [],
+      ...torznab,
+      name: 'Mock',
+      enable: true,
+      appProfileId: profiles[0]!.id,
+      protocol: 'torrent',
+      priority: 25,
+      tags: [],
       fields: torznab.fields.map((f) => (f.name in values ? { ...f, value: values[f.name] } : f)),
     }),
   });
@@ -64,21 +83,36 @@ test('wizard completo e pedido de um filme que aparece na fila do Radarr', async
   // --- Indexador falso (via API do Prowlarr) e espera pelo sync para o Radarr ---
   await addMockIndexer();
   await expect
-    .poll(async () => (await arr<{ name: string }[]>(RADARR, 'v3', secret('radarr.key'), 'indexer')).length, { timeout: 60_000 })
+    .poll(
+      async () =>
+        (await arr<{ name: string }[]>(RADARR, 'v3', secret('radarr.key'), 'indexer')).length,
+      { timeout: 60_000 },
+    )
     .toBeGreaterThan(0);
 
   // --- Pedir pelo ⌘K ---
   await page.keyboard.press('Control+K');
   await page.getByLabel('Pesquisar filmes e séries').fill('Night of the Living Dead');
-  const hit = page.getByRole('dialog').locator('li', { hasText: '1968' }).filter({ has: page.getByRole('button', { name: 'Pedir' }) }).first();
+  const hit = page
+    .getByRole('dialog')
+    .locator('li', { hasText: '1968' })
+    .filter({ has: page.getByRole('button', { name: 'Pedir' }) })
+    .first();
   await expect(hit).toBeVisible({ timeout: 30_000 });
   await hit.getByRole('button', { name: 'Pedir' }).click();
 
   // --- Aparece na fila do Radarr (e na página Atividade) ---
   await expect
-    .poll(async () => (await arr<{ totalRecords: number }>(RADARR, 'v3', secret('radarr.key'), 'queue')).totalRecords, { timeout: 4 * 60_000, intervals: [5_000] })
+    .poll(
+      async () =>
+        (await arr<{ totalRecords: number }>(RADARR, 'v3', secret('radarr.key'), 'queue'))
+          .totalRecords,
+      { timeout: 4 * 60_000, intervals: [5_000] },
+    )
     .toBeGreaterThan(0);
   await page.keyboard.press('Escape');
   await page.getByRole('link', { name: 'Atividade' }).first().click();
-  await expect(page.getByText(/Night\.of\.the\.Living\.Dead/).first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText(/Night\.of\.the\.Living\.Dead/).first()).toBeVisible({
+    timeout: 30_000,
+  });
 });

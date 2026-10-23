@@ -16,6 +16,7 @@ import {
 import { useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
 import { post } from './api';
+import { useLang, useT } from './i18n';
 import { Palette } from './Palette';
 import { Button } from './ui';
 
@@ -49,6 +50,8 @@ function useTheme() {
 }
 
 export function Shell({ user }: { user: string }) {
+  const t = useT();
+  const { lang, setLang } = useLang();
   const [dark, toggle] = useTheme();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const qc = useQueryClient();
@@ -74,11 +77,11 @@ export function Shell({ user }: { user: string }) {
           <Anchor className="size-6" style={{ color: 'var(--accent)' }} aria-hidden />
           <span className="text-lg font-semibold">Cais</span>
         </div>
-        <nav aria-label="Principal" className="flex flex-1 flex-col gap-1">
+        <nav aria-label={t('Principal')} className="flex flex-1 flex-col gap-1">
           {nav.map((n) => (
             <NavLink key={n.to} to={n.to} end={n.end} className="nav-link">
               <n.icon className="size-5" aria-hidden />
-              {n.label}
+              {t(n.label)}
             </NavLink>
           ))}
         </nav>
@@ -90,14 +93,21 @@ export function Shell({ user }: { user: string }) {
           <Button
             variant="ghost"
             onClick={toggle}
-            aria-label={dark ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
+            aria-label={dark ? t('Mudar para tema claro') : t('Mudar para tema escuro')}
           >
             {dark ? (
               <Sun className="size-4" aria-hidden />
             ) : (
               <Moon className="size-4" aria-hidden />
             )}
-            {dark ? 'Tema claro' : 'Tema escuro'}
+            {dark ? t('Tema claro') : t('Tema escuro')}
+          </Button>
+          <Button
+            variant="ghost"
+            onClick={() => setLang(lang === 'pt' ? 'en' : 'pt')}
+            aria-label={t('Mudar idioma')}
+          >
+            {lang === 'pt' ? 'English' : 'Português'}
           </Button>
           <Button
             variant="ghost"
@@ -106,7 +116,7 @@ export function Shell({ user }: { user: string }) {
               await qc.invalidateQueries({ queryKey: ['me'] });
             }}
           >
-            <LogOut className="size-4" aria-hidden /> Sair ({user})
+            <LogOut className="size-4" aria-hidden /> {t('Sair ({user})', { user })}
           </Button>
         </div>
       </aside>
@@ -120,13 +130,17 @@ export function Shell({ user }: { user: string }) {
             <Anchor className="size-5" style={{ color: 'var(--accent)' }} aria-hidden /> Cais
           </span>
           <span className="flex gap-1">
-            <Button variant="ghost" onClick={() => setPaletteOpen(true)} aria-label="Pesquisar">
+            <Button
+              variant="ghost"
+              onClick={() => setPaletteOpen(true)}
+              aria-label={t('Pesquisar')}
+            >
               <Search className="size-5" aria-hidden />
             </Button>
             <Button
               variant="ghost"
               onClick={toggle}
-              aria-label={dark ? 'Tema claro' : 'Tema escuro'}
+              aria-label={dark ? t('Tema claro') : t('Tema escuro')}
             >
               {dark ? (
                 <Sun className="size-5" aria-hidden />
@@ -142,7 +156,7 @@ export function Shell({ user }: { user: string }) {
       </div>
 
       <nav
-        aria-label="Principal (telemóvel)"
+        aria-label={t('Principal (telemóvel)')}
         className="fixed inset-x-0 bottom-0 z-10 flex justify-around border-t p-1 md:hidden"
         style={{ background: 'var(--surface)', borderColor: 'var(--border)' }}
       >
@@ -154,12 +168,12 @@ export function Shell({ user }: { user: string }) {
             className="nav-link flex-col !gap-0.5 !px-2 text-[0.7rem]"
           >
             <n.icon className="size-5" aria-hidden />
-            {n.label}
+            {t(n.label)}
           </NavLink>
         ))}
         <NavLink to="/definicoes" className="nav-link flex-col !gap-0.5 !px-2 text-[0.7rem]">
           <Settings className="size-5" aria-hidden />
-          Mais
+          {t('Mais')}
         </NavLink>
       </nav>
 

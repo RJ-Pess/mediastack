@@ -29,7 +29,7 @@ describe('autenticação', () => {
 
   it('setup cria o admin uma única vez e a sessão desbloqueia a API', async () => {
     const app = await newApp();
-    const body = { username: 'rita', password: 'uma-password-longa' };
+    const body = { username: 'admin', password: 'uma-password-longa' };
     const r = await app.inject({
       method: 'POST',
       url: '/api/auth/setup',
@@ -53,7 +53,7 @@ describe('autenticação', () => {
 
   it('login rejeita password errada, aceita a certa e logout invalida a sessão', async () => {
     const app = await newApp();
-    const body = { username: 'rita', password: 'uma-password-longa' };
+    const body = { username: 'admin', password: 'uma-password-longa' };
     await app.inject({ method: 'POST', url: '/api/auth/setup', headers: json, payload: body });
     const bad = await app.inject({
       method: 'POST',
@@ -75,7 +75,7 @@ describe('autenticação', () => {
 
   it('bloqueia depois de 5 tentativas falhadas', async () => {
     const app = await newApp();
-    const body = { username: 'rita', password: 'uma-password-longa' };
+    const body = { username: 'admin', password: 'uma-password-longa' };
     await app.inject({ method: 'POST', url: '/api/auth/setup', headers: json, payload: body });
     let last = 0;
     for (let i = 0; i < 6; i++) {

@@ -6,14 +6,14 @@ x-common: &common
   security_opt: ['no-new-privileges:true']
 
 x-lsio-env: &lsio-env
-  PUID: ${PUID:-1002}
-  PGID: ${PGID:-1001}
-  TZ: ${TZ:-Europe/Lisbon}
+  PUID: ${PUID:-1000}
+  PGID: ${PGID:-1000}
+  TZ: ${TZ:-UTC}
   UMASK: ${UMASK:-002}
 
 services:
   cais-init:
-    image: ${CAIS_IMAGE:-ghcr.io/OWNER/cais:latest}
+    image: ${CAIS_IMAGE:-cais:local}
     container_name: cais-init
     command: ['node', 'dist/index.js', 'init']
     restart: 'no'
@@ -23,26 +23,26 @@ services:
     security_opt: ['no-new-privileges:true']
     networks: [cais]
     environment:
-      PUID: ${PUID:-1002}
-      PGID: ${PGID:-1001}
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
       CAIS_TORRENT_PORT: ${TORRENT_PORT:-6882}
       CAIS_DATA_ROOT: /data
     volumes:
-      - ${CONFIG_ROOT:-/DATA/AppData/Media/cais}:/configs
-      - ${CONFIG_ROOT:-/DATA/AppData/Media/cais}/cais/secrets:/run/cais
-      - ${DATA_ROOT:-/DATA/Disco_EXT/Entretenimento}:/data
+      - ${CONFIG_ROOT:-./config}:/configs
+      - ${CONFIG_ROOT:-./config}/cais/secrets:/run/cais
+      - ${DATA_ROOT:?defina DATA_ROOT no .env (raiz de dados partilhada)}:/data
 
   cais:
     <<: *common
-    image: ${CAIS_IMAGE:-ghcr.io/OWNER/cais:latest}
+    image: ${CAIS_IMAGE:-cais:local}
     container_name: cais
     ports: ['${CAIS_PORT:-8088}:8080']
-    user: '${PUID:-1002}:${PGID:-1001}'
+    user: '${PUID:-1000}:${PGID:-1000}'
     cap_drop: [ALL]
     volumes:
-      - ${CONFIG_ROOT:-/DATA/AppData/Media/cais}/cais/data:/config
-      - ${DATA_ROOT:-/DATA/Disco_EXT/Entretenimento}:/data
-      - ${CONFIG_ROOT:-/DATA/AppData/Media/cais}/cais/secrets:/run/cais:ro
+      - ${CONFIG_ROOT:-./config}/cais/data:/config
+      - ${DATA_ROOT:?defina DATA_ROOT no .env (raiz de dados partilhada)}:/data
+      - ${CONFIG_ROOT:-./config}/cais/secrets:/run/cais:ro
     depends_on:
       cais-init: { condition: service_completed_successfully }
       sonarr: { condition: service_healthy }
@@ -55,8 +55,8 @@ services:
     container_name: seerr
     depends_on:
       cais-init: { condition: service_completed_successfully }
-    environment: { TZ: '${TZ:-Europe/Lisbon}' }
-    volumes: ['${CONFIG_ROOT:-/DATA/AppData/Media/cais}/seerr:/app/config']
+    environment: { TZ: '${TZ:-UTC}' }
+    volumes: ['${CONFIG_ROOT:-./config}/seerr:/app/config']
 
   sonarr:
     <<: *common
@@ -70,9 +70,9 @@ services:
       SONARR__AUTH__METHOD: Forms
       SONARR__AUTH__REQUIRED: DisabledForLocalAddresses
     volumes:
-      - ${CONFIG_ROOT:-/DATA/AppData/Media/cais}/cais/secrets:/run/cais:ro
-      - ${CONFIG_ROOT:-/DATA/AppData/Media/cais}/sonarr:/config
-      - ${DATA_ROOT:-/DATA/Disco_EXT/Entretenimento}:/data
+      - ${CONFIG_ROOT:-./config}/cais/secrets:/run/cais:ro
+      - ${CONFIG_ROOT:-./config}/sonarr:/config
+      - ${DATA_ROOT:?defina DATA_ROOT no .env (raiz de dados partilhada)}:/data
     healthcheck: &hc-ping
       test: ['CMD-SHELL', 'curl -fs http://localhost:8989/ping || exit 1']
       interval: 15s
@@ -92,9 +92,9 @@ services:
       RADARR__AUTH__METHOD: Forms
       RADARR__AUTH__REQUIRED: DisabledForLocalAddresses
     volumes:
-      - ${CONFIG_ROOT:-/DATA/AppData/Media/cais}/cais/secrets:/run/cais:ro
-      - ${CONFIG_ROOT:-/DATA/AppData/Media/cais}/radarr:/config
-      - ${DATA_ROOT:-/DATA/Disco_EXT/Entretenimento}:/data
+      - ${CONFIG_ROOT:-./config}/cais/secrets:/run/cais:ro
+      - ${CONFIG_ROOT:-./config}/radarr:/config
+      - ${DATA_ROOT:?defina DATA_ROOT no .env (raiz de dados partilhada)}:/data
     healthcheck:
       <<: *hc-ping
       test: ['CMD-SHELL', 'curl -fs http://localhost:7878/ping || exit 1']
@@ -111,8 +111,8 @@ services:
       PROWLARR__AUTH__METHOD: Forms
       PROWLARR__AUTH__REQUIRED: DisabledForLocalAddresses
     volumes:
-      - ${CONFIG_ROOT:-/DATA/AppData/Media/cais}/cais/secrets:/run/cais:ro
-      - ${CONFIG_ROOT:-/DATA/AppData/Media/cais}/prowlarr:/config
+      - ${CONFIG_ROOT:-./config}/cais/secrets:/run/cais:ro
+      - ${CONFIG_ROOT:-./config}/prowlarr:/config
     healthcheck:
       <<: *hc-ping
       test: ['CMD-SHELL', 'curl -fs http://localhost:9696/ping || exit 1']
@@ -125,8 +125,8 @@ services:
       cais-init: { condition: service_completed_successfully }
     environment: *lsio-env
     volumes:
-      - ${CONFIG_ROOT:-/DATA/AppData/Media/cais}/bazarr:/config
-      - ${DATA_ROOT:-/DATA/Disco_EXT/Entretenimento}:/data
+      - ${CONFIG_ROOT:-./config}/bazarr:/config
+      - ${DATA_ROOT:?defina DATA_ROOT no .env (raiz de dados partilhada)}:/data
 
   qbittorrent:
     <<: *common
@@ -142,8 +142,8 @@ services:
       - '${TORRENT_PORT:-6882}:${TORRENT_PORT:-6882}'
       - '${TORRENT_PORT:-6882}:${TORRENT_PORT:-6882}/udp'
     volumes:
-      - ${CONFIG_ROOT:-/DATA/AppData/Media/cais}/qbittorrent:/config
-      - ${DATA_ROOT:-/DATA/Disco_EXT/Entretenimento}:/data
+      - ${CONFIG_ROOT:-./config}/qbittorrent:/config
+      - ${DATA_ROOT:?defina DATA_ROOT no .env (raiz de dados partilhada)}:/data
 
   byparr:
     <<: *common

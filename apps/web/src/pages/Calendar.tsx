@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { Clapperboard, Tv } from 'lucide-react';
 import { api } from '../api';
+import { useLang, useT } from '../i18n';
 import { Empty, ErrorNote, PageHeader, Skeleton } from '../ui';
 
 interface Item {
@@ -12,10 +13,12 @@ interface Item {
 }
 
 export function Calendar() {
+  const t = useT();
+  const { locale } = useLang();
   const q = useQuery({ queryKey: ['calendar'], queryFn: () => api<Item[]>('/api/calendar') });
   const byDay = new Map<string, Item[]>();
   for (const i of q.data ?? []) {
-    const k = new Date(i.date).toLocaleDateString('pt-PT', {
+    const k = new Date(i.date).toLocaleDateString(locale, {
       weekday: 'long',
       day: 'numeric',
       month: 'long',
@@ -24,7 +27,7 @@ export function Calendar() {
   }
   return (
     <>
-      <PageHeader title="Calendário" />
+      <PageHeader title={t('Calendário')} />
       <ErrorNote error={q.error} />
       {q.isLoading ? (
         <Skeleton className="h-40" />
@@ -37,9 +40,9 @@ export function Calendar() {
                 {items.map((i, n) => (
                   <li key={n} className="card flex items-center gap-3 !p-3">
                     {i.kind === 'episode' ? (
-                      <Tv className="size-5 shrink-0" aria-label="Episódio" />
+                      <Tv className="size-5 shrink-0" aria-label={t('Episódio')} />
                     ) : (
-                      <Clapperboard className="size-5 shrink-0" aria-label="Filme" />
+                      <Clapperboard className="size-5 shrink-0" aria-label={t('Filme')} />
                     )}
                     <div className="min-w-0 flex-1">
                       <p className="truncate font-medium">{i.title}</p>
@@ -47,7 +50,7 @@ export function Calendar() {
                     </div>
                     {i.hasFile && (
                       <span className="text-xs" style={{ color: 'var(--ok)' }}>
-                        Disponível
+                        {t('Disponível')}
                       </span>
                     )}
                   </li>
@@ -57,7 +60,7 @@ export function Calendar() {
           ))}
         </div>
       ) : (
-        <Empty>Nada agendado nas próximas três semanas.</Empty>
+        <Empty>{t('Nada agendado nas próximas três semanas.')}</Empty>
       )}
     </>
   );

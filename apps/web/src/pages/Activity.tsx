@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Pause, Play, Trash2 } from 'lucide-react';
 import { api, fmtBytes, fmtEta, post } from '../api';
+import { useT } from '../i18n';
 import { Button, Empty, ErrorNote, PageHeader, Skeleton } from '../ui';
 
 interface Item {
@@ -16,6 +17,7 @@ interface Item {
 const paused = (s: string) => /paused|stopped/i.test(s);
 
 export function Activity() {
+  const t = useT();
   const qc = useQueryClient();
   const q = useQuery({
     queryKey: ['activity'],
@@ -29,7 +31,7 @@ export function Activity() {
   });
   return (
     <>
-      <PageHeader title="Atividade" />
+      <PageHeader title={t('Atividade')} />
       <ErrorNote error={q.error ?? act.error} />
       {q.isLoading ? (
         <Skeleton className="h-40" />
@@ -48,7 +50,11 @@ export function Activity() {
                   <div className="flex shrink-0 gap-1">
                     <Button
                       variant="ghost"
-                      aria-label={paused(a.state) ? `Retomar ${a.title}` : `Pausar ${a.title}`}
+                      aria-label={
+                        paused(a.state)
+                          ? t('Retomar {title}', { title: a.title })
+                          : t('Pausar {title}', { title: a.title })
+                      }
                       onClick={() =>
                         act.mutate({ hash: a.hash!, action: paused(a.state) ? 'resume' : 'pause' })
                       }
@@ -61,10 +67,11 @@ export function Activity() {
                     </Button>
                     <Button
                       variant="danger"
-                      aria-label={`Remover ${a.title}`}
+                      aria-label={t('Remover {title}', { title: a.title })}
                       onClick={() =>
-                        window.confirm(`Remover "${a.title}" (os ficheiros ficam)?`) &&
-                        act.mutate({ hash: a.hash!, action: 'delete' })
+                        window.confirm(
+                          t('Remover "{title}" (os ficheiros ficam)?', { title: a.title }),
+                        ) && act.mutate({ hash: a.hash!, action: 'delete' })
                       }
                     >
                       <Trash2 className="size-4" aria-hidden />
@@ -78,18 +85,19 @@ export function Activity() {
                 aria-valuenow={Math.round(a.progress * 100)}
                 aria-valuemin={0}
                 aria-valuemax={100}
-                aria-label={`Progresso de ${a.title}`}
+                aria-label={t('Progresso de {title}', { title: a.title })}
               >
                 <span style={{ width: `${a.progress * 100}%` }} />
               </div>
               <p className="muted text-xs">
-                {Math.round(a.progress * 100)}% · {fmtBytes(a.downBps)}/s · ETA {fmtEta(a.etaSec)}
+                {Math.round(a.progress * 100)}% · {fmtBytes(a.downBps)}/s · {t('ETA')}{' '}
+                {fmtEta(a.etaSec)}
               </p>
             </li>
           ))}
         </ul>
       ) : (
-        <Empty>Sem downloads em curso.</Empty>
+        <Empty>{t('Sem downloads em curso.')}</Empty>
       )}
     </>
   );

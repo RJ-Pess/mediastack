@@ -5,5 +5,9 @@ export default defineConfig({
   timeout: 6 * 60_000,
   workers: 1,
   reporter: [['list']],
-  use: { baseURL: process.env.CAIS_URL ?? 'http://localhost:18088', locale: 'pt-PT', trace: 'retain-on-failure' },
+  use: {
+    baseURL: process.env.CAIS_URL ?? 'http://localhost:18088',
+    locale: 'pt-PT',
+    trace: 'retain-on-failure',
+  },
 });

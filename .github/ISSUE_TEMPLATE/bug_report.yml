@@ -1,0 +1,26 @@
+name: Bug report / Reportar um erro
+description: Something isn't working / Algo não funciona
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened? / O que aconteceu?
+      description: Steps to reproduce, expected vs actual behaviour.
+    validations: { required: true }
+  - type: input
+    id: version
+    attributes:
+      label: Cais version / image tag
+    validations: { required: true }
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment / Ambiente
+      description: Host OS, architecture, Docker version, how DATA_ROOT is mounted (same filesystem?).
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs
+      description: '`docker compose logs cais cais-init <service>` — **remove API keys and passwords first**.'
+      render: shell

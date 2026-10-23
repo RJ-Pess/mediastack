@@ -1,4 +1,5 @@
 import type { ComponentProps, ReactNode } from 'react';
+import { useT } from './i18n';
 
 export const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ');
 
@@ -19,7 +20,8 @@ export function Skeleton({ className }: { className?: string }) {
 }
 
 export function Dot({ state }: { state: 'ok' | 'warn' | 'bad' | 'idle' }) {
-  const label = { ok: 'Em ordem', warn: 'Atenção', bad: 'Problema', idle: 'Inativo' }[state];
+  const t = useT();
+  const label = t({ ok: 'Em ordem', warn: 'Atenção', bad: 'Problema', idle: 'Inativo' }[state]);
   return <span className={cx('dot', `dot-${state}`)} role="img" aria-label={label} />;
 }
 
@@ -37,19 +39,21 @@ export function Empty({ children }: { children: ReactNode }) {
 }
 
 export function ErrorNote({ error }: { error: unknown }) {
+  const t = useT();
   if (!error) return null;
   return (
     <p role="alert" className="mb-4 rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-sm">
-      {error instanceof Error ? error.message : String(error)}
+      {t(error instanceof Error ? error.message : String(error))}
     </p>
   );
 }
 
 export function Poster({ src, title }: { src: string | null; title: string }) {
+  const t = useT();
   return src ? (
     <img
       src={src}
-      alt={`Poster de ${title}`}
+      alt={t('Poster de {title}', { title })}
       loading="lazy"
       className="aspect-[2/3] w-full rounded-lg object-cover"
     />
@@ -57,7 +61,7 @@ export function Poster({ src, title }: { src: string | null; title: string }) {
     <div
       className="poster-fallback aspect-[2/3] w-full rounded-lg"
       role="img"
-      aria-label={`Sem poster para ${title}`}
+      aria-label={t('Sem poster para {title}', { title })}
     >
       {title.slice(0, 1)}
     </div>

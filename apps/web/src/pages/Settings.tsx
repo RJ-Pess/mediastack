@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { ArrowRight } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { api, post } from '../api';
+import { useLang, useT } from '../i18n';
 import { Button, Card, Dot, ErrorNote, PageHeader, Skeleton } from '../ui';
 
 interface Desired {
@@ -68,11 +69,12 @@ function Section({
   affects: string;
   children: ReactNode;
 }) {
+  const t = useT();
   return (
     <Card className="space-y-3">
       <div>
-        <h2 className="font-semibold">{title}</h2>
-        <p className="muted text-xs">Afeta: {affects}</p>
+        <h2 className="font-semibold">{t(title)}</h2>
+        <p className="muted text-xs">{t('Afeta: {services}', { services: affects })}</p>
       </div>
       {children}
     </Card>
@@ -88,6 +90,13 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 }
 
 export function Settings() {
+  const t = useT();
+  const { locale } = useLang();
+  const fieldLabel = (c: { fieldId: string; label: string }) => {
+    const k = `field:${c.fieldId}`;
+    const r = t(k);
+    return r === k ? c.label : r;
+  };
   const qc = useQueryClient();
   const desired = useQuery({ queryKey: ['desired'], queryFn: () => api<Desired>('/api/desired') });
   const plan = useQuery({ queryKey: ['plan'], queryFn: () => api<Plan>('/api/plan') });
@@ -120,7 +129,7 @@ export function Settings() {
   if (!value)
     return (
       <>
-        <PageHeader title="Definições" />
+        <PageHeader title={t('Definições')} />
         <ErrorNote error={desired.error} />
         <Skeleton className="h-60" />
       </>
@@ -139,22 +148,23 @@ export function Settings() {
 
   return (
     <>
-      <PageHeader title="Definições">
+      <PageHeader title={t('Definições')}>
         <div className="flex gap-2">
           {draft && (
             <Button variant="ghost" onClick={() => setDraft(null)}>
-              Descartar
+              {t('Descartar')}
             </Button>
           )}
           <Button onClick={() => value && save.mutate(value)} disabled={!draft || save.isPending}>
-            Guardar
+            {t('Guardar')}
           </Button>
           <Button
             variant="primary"
             onClick={() => apply.mutate(undefined)}
             disabled={!!draft || !plan.data?.changes.length || apply.isPending}
           >
-            Aplicar tudo{plan.data?.changes.length ? ` (${plan.data.changes.length})` : ''}
+            {t('Aplicar tudo')}
+            {plan.data?.changes.length ? ` (${plan.data.changes.length})` : ''}
           </Button>
         </div>
       </PageHeader>
@@ -168,17 +178,17 @@ export function Settings() {
       {driftChanges.length > 0 && (
         <Card className="mb-6 space-y-3" style={{ borderColor: 'var(--warn)' }}>
           <h2 className="font-semibold">
-            <Dot state="warn" /> Alterações feitas fora do Cais
+            <Dot state="warn" /> {t('Alterações feitas fora do Cais')}
           </h2>
           <ul className="space-y-2">
             {driftChanges.map((c) => (
               <li key={c.fieldId} className="flex flex-wrap items-center gap-2 text-sm">
                 <span className="flex-1">
-                  {ICON[c.service]} · {c.label}: <b>{show(c.before)}</b> (esperado{' '}
+                  {ICON[c.service]} · {fieldLabel(c)}: <b>{show(c.before)}</b> ({t('esperado')}{' '}
                   <b>{show(c.after)}</b>)
                 </span>
-                <Button onClick={() => adopt.mutate(c.fieldId)}>Adotar</Button>
-                <Button onClick={() => apply.mutate([c.fieldId])}>Repor</Button>
+                <Button onClick={() => adopt.mutate(c.fieldId)}>{t('Adotar')}</Button>
+                <Button onClick={() => apply.mutate([c.fieldId])}>{t('Repor')}</Button>
               </li>
             ))}
           </ul>
@@ -188,7 +198,7 @@ export function Settings() {
       <div className="grid gap-6 lg:grid-cols-2">
         <div className="space-y-6">
           <Section title="Armazenamento" affects="Sonarr, Radarr, Bazarr, qBittorrent">
-            <Row label="Biblioteca de séries">
+            <Row label={t('Biblioteca de séries')}>
               <input
                 className="input"
                 value={value.storage.tvRoot}
@@ -199,7 +209,7 @@ export function Settings() {
                 }
               />
             </Row>
-            <Row label="Biblioteca de filmes">
+            <Row label={t('Biblioteca de filmes')}>
               <input
                 className="input"
                 value={value.storage.moviesRoot}
@@ -210,7 +220,7 @@ export function Settings() {
                 }
               />
             </Row>
-            <Row label="Bibliotecas extra de filmes (uma por linha)">
+            <Row label={t('Bibliotecas extra de filmes (uma por linha)')}>
               <textarea
                 className="input"
                 rows={2}
@@ -225,7 +235,7 @@ export function Settings() {
                 }
               />
             </Row>
-            <Row label="Bibliotecas extra de séries (uma por linha)">
+            <Row label={t('Bibliotecas extra de séries (uma por linha)')}>
               <textarea
                 className="input"
                 rows={2}
@@ -242,7 +252,7 @@ export function Settings() {
             </Row>
           </Section>
           <Section title="Downloads" affects="qBittorrent, Sonarr, Radarr">
-            <Row label="Pasta de torrents">
+            <Row label={t('Pasta de torrents')}>
               <input
                 className="input"
                 value={value.downloads.torrentsRoot}
@@ -254,7 +264,7 @@ export function Settings() {
               />
             </Row>
             <div className="grid grid-cols-2 gap-3">
-              <Row label="Categoria (séries)">
+              <Row label={t('Categoria (séries)')}>
                 <input
                   className="input"
                   value={value.downloads.categories.tv}
@@ -265,7 +275,7 @@ export function Settings() {
                   }
                 />
               </Row>
-              <Row label="Categoria (filmes)">
+              <Row label={t('Categoria (filmes)')}>
                 <input
                   className="input"
                   value={value.downloads.categories.movies}
@@ -276,7 +286,7 @@ export function Settings() {
                   }
                 />
               </Row>
-              <Row label="Limite de descarga (KiB/s)">
+              <Row label={t('Limite de descarga (KiB/s)')}>
                 <input
                   className="input"
                   inputMode="numeric"
@@ -288,7 +298,7 @@ export function Settings() {
                   }
                 />
               </Row>
-              <Row label="Limite de envio (KiB/s)">
+              <Row label={t('Limite de envio (KiB/s)')}>
                 <input
                   className="input"
                   inputMode="numeric"
@@ -300,7 +310,7 @@ export function Settings() {
                   }
                 />
               </Row>
-              <Row label="Rácio de seeding (0 = desligado)">
+              <Row label={t('Rácio de seeding (0 = desligado)')}>
                 <input
                   className="input"
                   inputMode="decimal"
@@ -313,11 +323,11 @@ export function Settings() {
                 />
               </Row>
             </div>
-            <p className="muted text-xs">0 = sem limite.</p>
+            <p className="muted text-xs">{t('0 = sem limite.')}</p>
           </Section>
           <Section title="Legendas" affects="Bazarr">
             <fieldset className="space-y-1">
-              <legend className="sr-only">Idiomas das legendas</legend>
+              <legend className="sr-only">{t('Idiomas das legendas')}</legend>
               {LANGS.map(([c, n]) => (
                 <label key={c} className="flex min-h-10 items-center gap-3">
                   <input
@@ -332,7 +342,7 @@ export function Settings() {
                       })
                     }
                   />
-                  {n}
+                  {t(n)}
                 </label>
               ))}
             </fieldset>
@@ -341,9 +351,11 @@ export function Settings() {
 
         <div className="space-y-6">
           <Card className="space-y-3">
-            <h2 className="font-semibold">Plano de alterações</h2>
+            <h2 className="font-semibold">{t('Plano de alterações')}</h2>
             {draft && (
-              <p className="muted text-sm">Guarda primeiro para ver o que muda nos serviços.</p>
+              <p className="muted text-sm">
+                {t('Guarda primeiro para ver o que muda nos serviços.')}
+              </p>
             )}
             {plan.isLoading ? (
               <Skeleton className="h-24" />
@@ -358,10 +370,10 @@ export function Settings() {
                         className="rounded-lg p-2 text-sm"
                         style={{ background: 'var(--surface-2)' }}
                       >
-                        <p className="muted text-xs">{c.label}</p>
+                        <p className="muted text-xs">{fieldLabel(c)}</p>
                         <p className="flex flex-wrap items-center gap-2">
                           <del className="muted">{show(c.before)}</del>
-                          <ArrowRight className="size-4" aria-label="passa a" />
+                          <ArrowRight className="size-4" aria-label={t('passa a')} />
                           <b>{show(c.after)}</b>
                         </p>
                       </li>
@@ -371,7 +383,7 @@ export function Settings() {
               ))
             ) : (
               <p className="muted text-sm">
-                <Dot state="ok" /> Tudo em sincronia com o estado desejado.
+                <Dot state="ok" /> {t('Tudo em sincronia com o estado desejado.')}
               </p>
             )}
             {plan.data?.errors.map((e) => (
@@ -381,20 +393,20 @@ export function Settings() {
             ))}
           </Card>
           <Card>
-            <h2 className="mb-3 font-semibold">Histórico</h2>
+            <h2 className="mb-3 font-semibold">{t('Histórico')}</h2>
             <ul className="max-h-72 space-y-1 overflow-auto text-xs">
               {audit.data?.length ? (
                 audit.data.map((a) => (
                   <li key={a.id}>
                     <time className="muted" dateTime={a.ts}>
-                      {new Date(a.ts).toLocaleString('pt-PT')}
+                      {new Date(a.ts).toLocaleString(locale)}
                     </time>{' '}
                     · {a.fieldId}: {show(a.before)} → {show(a.after)}{' '}
                     {a.status === 'error' && <b style={{ color: 'var(--bad)' }}>({a.error})</b>}
                   </li>
                 ))
               ) : (
-                <li className="muted">Sem registos.</li>
+                <li className="muted">{t('Sem registos.')}</li>
               )}
             </ul>
           </Card>

@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, Loader2, Plus } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { api, post } from './api';
+import { useT } from './i18n';
 import { ErrorNote, Poster } from './ui';
 
 export interface SearchResult {
@@ -15,6 +16,7 @@ export interface SearchResult {
 
 /** Pesquisa global (⌘K): procura no TMDB (via Seerr) e pede com um clique. */
 export function Palette({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const t = useT();
   const [q, setQ] = useState('');
   const [debounced, setDebounced] = useState('');
   const input = useRef<HTMLInputElement>(null);
@@ -58,18 +60,18 @@ export function Palette({ open, onClose }: { open: boolean; onClose: () => void 
       <div
         role="dialog"
         aria-modal="true"
-        aria-label="Pesquisa global"
+        aria-label={t('Pesquisa global')}
         className="card mx-auto w-full max-w-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <label htmlFor="global-search" className="sr-only">
-          Pesquisar filmes e séries
+          {t('Pesquisar filmes e séries')}
         </label>
         <input
           id="global-search"
           ref={input}
           className="input"
-          placeholder="Pesquisar filmes e séries…"
+          placeholder={t('Pesquisar filmes e séries…')}
           value={q}
           onChange={(e) => setQ(e.target.value)}
         />
@@ -77,7 +79,7 @@ export function Palette({ open, onClose }: { open: boolean; onClose: () => void 
         <ul className="mt-3 max-h-[60vh] space-y-2 overflow-auto">
           {results.isFetching && (
             <li className="muted p-2">
-              <Loader2 className="inline size-4 animate-spin" aria-hidden /> A procurar…
+              <Loader2 className="inline size-4 animate-spin" aria-hidden /> {t('A procurar…')}
             </li>
           )}
           {results.data?.map((r) => (
@@ -92,13 +94,13 @@ export function Palette({ open, onClose }: { open: boolean; onClose: () => void 
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{r.title}</p>
                 <p className="muted text-sm">
-                  {r.mediaType === 'movie' ? 'Filme' : 'Série'} · {r.year || '—'}
+                  {r.mediaType === 'movie' ? t('Filme') : t('Série')} · {r.year || '—'}
                 </p>
               </div>
               {r.mediaStatus >= 2 ? (
                 <span className="muted flex items-center gap-1 text-sm">
                   <Check className="size-4" aria-hidden />{' '}
-                  {r.mediaStatus === 5 ? 'Disponível' : 'Pedido'}
+                  {r.mediaStatus === 5 ? t('Disponível') : t('Pedido')}
                 </span>
               ) : (
                 <button
@@ -106,12 +108,12 @@ export function Palette({ open, onClose }: { open: boolean; onClose: () => void 
                   onClick={() => request.mutate(r)}
                   disabled={request.isPending}
                 >
-                  <Plus className="size-4" aria-hidden /> Pedir
+                  <Plus className="size-4" aria-hidden /> {t('Pedir')}
                 </button>
               )}
             </li>
           ))}
-          {results.data?.length === 0 && <li className="muted p-2">Sem resultados.</li>}
+          {results.data?.length === 0 && <li className="muted p-2">{t('Sem resultados.')}</li>}
         </ul>
       </div>
     </div>

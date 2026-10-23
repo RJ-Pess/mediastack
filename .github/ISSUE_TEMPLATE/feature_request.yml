@@ -1,0 +1,10 @@
+name: Feature request / Pedir uma funcionalidade
+description: Suggest an idea / Sugere uma ideia
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like to manage from Cais? / O que gostavas de gerir no Cais?
+      description: Which service setting(s) does it touch?
+    validations: { required: true }

@@ -20,7 +20,7 @@ DATA_ROOT=$WORK/data
 CAIS_PORT=18088
 TORRENT_PORT=16882
 ENV
-trap cleanup EXIT
+[ -n "${KEEP:-}" ] || trap cleanup EXIT
 "${COMPOSE[@]}" up -d >/dev/null
 
 JF=localhost:18096

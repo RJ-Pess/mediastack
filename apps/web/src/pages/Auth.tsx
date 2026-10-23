@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Anchor, Check, CircleAlert, Loader2 } from 'lucide-react';
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { api, post } from '../api';
+import { useT } from '../i18n';
 import { Button, Card, ErrorNote } from '../ui';
 
 function Frame({ title, children, step }: { title: string; children: ReactNode; step?: string }) {
@@ -31,6 +32,7 @@ function Field({ label, children, hint }: { label: string; children: ReactNode; 
 }
 
 export function Login() {
+  const t = useT();
   const qc = useQueryClient();
   const [username, setU] = useState('');
   const [password, setP] = useState('');
@@ -39,10 +41,10 @@ export function Login() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['me'] }),
   });
   return (
-    <Frame title="Entrar">
+    <Frame title={t('Entrar')}>
       <form className="space-y-4" onSubmit={(e: FormEvent) => (e.preventDefault(), login.mutate())}>
         <ErrorNote error={login.error} />
-        <Field label="Utilizador">
+        <Field label={t('Utilizador')}>
           <input
             className="input"
             autoComplete="username"
@@ -50,7 +52,7 @@ export function Login() {
             onChange={(e) => setU(e.target.value)}
           />
         </Field>
-        <Field label="Palavra-passe">
+        <Field label={t('Palavra-passe')}>
           <input
             className="input"
             type="password"
@@ -60,7 +62,7 @@ export function Login() {
           />
         </Field>
         <Button variant="primary" type="submit" disabled={login.isPending}>
-          Entrar
+          {t('Entrar')}
         </Button>
       </form>
     </Frame>
@@ -105,10 +107,11 @@ type Step = 'admin' | 'storage' | 'subs' | 'jellyfin' | 'apply';
 const ORDER: Step[] = ['admin', 'storage', 'subs', 'jellyfin', 'apply'];
 
 export function Wizard({ startAt }: { startAt: Step }) {
+  const t = useT();
   const qc = useQueryClient();
   const [step, setStep] = useState<Step>(startAt);
   const next = () => setStep(ORDER[ORDER.indexOf(step) + 1] ?? 'apply');
-  const label = `Passo ${ORDER.indexOf(step) + 1} de ${ORDER.length}`;
+  const label = t('Passo {n} de {total}', { n: ORDER.indexOf(step) + 1, total: ORDER.length });
 
   if (step === 'admin')
     return (
@@ -127,6 +130,7 @@ export function Wizard({ startAt }: { startAt: Step }) {
 }
 
 function AdminStep({ label, onDone }: { label: string; onDone: () => void }) {
+  const t = useT();
   const [username, setU] = useState('admin');
   const [password, setP] = useState('');
   const m = useMutation({
@@ -134,10 +138,10 @@ function AdminStep({ label, onDone }: { label: string; onDone: () => void }) {
     onSuccess: onDone,
   });
   return (
-    <Frame title="Bem-vindo! Cria o administrador" step={label}>
+    <Frame title={t('Bem-vindo! Cria o administrador')} step={label}>
       <form className="space-y-4" onSubmit={(e) => (e.preventDefault(), m.mutate())}>
         <ErrorNote error={m.error} />
-        <Field label="Utilizador">
+        <Field label={t('Utilizador')}>
           <input
             className="input"
             autoComplete="username"
@@ -145,7 +149,7 @@ function AdminStep({ label, onDone }: { label: string; onDone: () => void }) {
             onChange={(e) => setU(e.target.value)}
           />
         </Field>
-        <Field label="Palavra-passe" hint="Mínimo de 10 caracteres.">
+        <Field label={t('Palavra-passe')} hint={t('Mínimo de 10 caracteres.')}>
           <input
             className="input"
             type="password"
@@ -155,7 +159,7 @@ function AdminStep({ label, onDone }: { label: string; onDone: () => void }) {
           />
         </Field>
         <Button variant="primary" type="submit" disabled={m.isPending}>
-          Continuar
+          {t('Continuar')}
         </Button>
       </form>
     </Frame>
@@ -173,6 +177,7 @@ function useDesired() {
 }
 
 function StorageStep({ label, onDone }: { label: string; onDone: () => void }) {
+  const t = useT();
   const { q, value, setDraft, save } = useDesired();
   const check = useMutation({
     mutationFn: async () => {
@@ -182,9 +187,9 @@ function StorageStep({ label, onDone }: { label: string; onDone: () => void }) {
   });
   if (!value)
     return (
-      <Frame title="Armazenamento" step={label}>
+      <Frame title={t('Armazenamento')} step={label}>
         <ErrorNote error={q.error} />
-        <Loader2 className="animate-spin" aria-label="A carregar" />
+        <Loader2 className="animate-spin" aria-label={t('A carregar')} />
       </Frame>
     );
   const set = (f: (d: Desired) => void) => {
@@ -194,13 +199,14 @@ function StorageStep({ label, onDone }: { label: string; onDone: () => void }) {
   };
   const broken = check.data?.some((r) => !r.ok);
   return (
-    <Frame title="Onde ficam os ficheiros?" step={label}>
+    <Frame title={t('Onde ficam os ficheiros?')} step={label}>
       <p className="muted text-sm">
-        Todos os serviços veem a raiz de dados em <code>/data</code>. Torrents e bibliotecas têm de
-        estar no mesmo volume para haver hardlinks.
+        {t(
+          'Todos os serviços veem a raiz de dados em /data. Torrents e bibliotecas têm de estar no mesmo volume para haver hardlinks.',
+        )}
       </p>
       <ErrorNote error={check.error ?? save.error} />
-      <Field label="Torrents">
+      <Field label={t('Torrents')}>
         <input
           className="input"
           value={value.downloads.torrentsRoot}
@@ -211,7 +217,7 @@ function StorageStep({ label, onDone }: { label: string; onDone: () => void }) {
           }
         />
       </Field>
-      <Field label="Biblioteca de séries">
+      <Field label={t('Biblioteca de séries')}>
         <input
           className="input"
           value={value.storage.tvRoot}
@@ -222,7 +228,7 @@ function StorageStep({ label, onDone }: { label: string; onDone: () => void }) {
           }
         />
       </Field>
-      <Field label="Biblioteca de filmes">
+      <Field label={t('Biblioteca de filmes')}>
         <input
           className="input"
           value={value.storage.moviesRoot}
@@ -234,7 +240,7 @@ function StorageStep({ label, onDone }: { label: string; onDone: () => void }) {
         />
       </Field>
       <Button onClick={() => check.mutate()} disabled={check.isPending}>
-        Testar hardlinks
+        {t('Testar hardlinks')}
       </Button>
       {check.data && (
         <ul className="space-y-2" aria-live="polite">
@@ -245,7 +251,11 @@ function StorageStep({ label, onDone }: { label: string; onDone: () => void }) {
               ) : (
                 <CircleAlert className="mt-0.5 size-4 shrink-0 text-amber-400" aria-hidden />
               )}
-              <span>{r.ok ? `Hardlinks OK: ${r.from} → ${r.to}` : (r.message ?? 'Falhou')}</span>
+              <span>
+                {r.ok
+                  ? t('Hardlinks OK: {from} → {to}', { from: r.from, to: r.to })
+                  : t(r.message ?? 'Falhou')}
+              </span>
             </li>
           ))}
         </ul>
@@ -259,7 +269,7 @@ function StorageStep({ label, onDone }: { label: string; onDone: () => void }) {
           }}
           disabled={save.isPending}
         >
-          {broken ? 'Continuar mesmo assim' : 'Continuar'}
+          {broken ? t('Continuar mesmo assim') : t('Continuar')}
         </Button>
       </div>
     </Frame>
@@ -267,11 +277,12 @@ function StorageStep({ label, onDone }: { label: string; onDone: () => void }) {
 }
 
 function SubsStep({ label, onDone }: { label: string; onDone: () => void }) {
+  const t = useT();
   const { value, setDraft, save } = useDesired();
   if (!value)
     return (
-      <Frame title="Legendas" step={label}>
-        <Loader2 className="animate-spin" aria-label="A carregar" />
+      <Frame title={t('Legendas')} step={label}>
+        <Loader2 className="animate-spin" aria-label={t('A carregar')} />
       </Frame>
     );
   const langs = value.subtitles.languages;
@@ -281,13 +292,15 @@ function SubsStep({ label, onDone }: { label: string; onDone: () => void }) {
     setDraft(d);
   };
   return (
-    <Frame title="Idiomas das legendas" step={label}>
+    <Frame title={t('Idiomas das legendas')} step={label}>
       <p className="muted text-sm">
-        Por ordem de preferência. A qualidade de vídeo (1080p / 4K) chega com os perfis TRaSH.
+        {t(
+          'Por ordem de preferência. A qualidade de vídeo (1080p / 4K) chega com os perfis TRaSH.',
+        )}
       </p>
       <ErrorNote error={save.error} />
       <fieldset className="space-y-2">
-        <legend className="sr-only">Idiomas</legend>
+        <legend className="sr-only">{t('Idiomas')}</legend>
         {LANGS.map(([code, name]) => (
           <label key={code} className="flex min-h-10 items-center gap-3">
             <input
@@ -296,7 +309,7 @@ function SubsStep({ label, onDone }: { label: string; onDone: () => void }) {
               onChange={() => toggle(code)}
               className="size-5"
             />
-            {name}
+            {t(name)}
           </label>
         ))}
       </fieldset>
@@ -308,13 +321,14 @@ function SubsStep({ label, onDone }: { label: string; onDone: () => void }) {
           onDone();
         }}
       >
-        Continuar
+        {t('Continuar')}
       </Button>
     </Frame>
   );
 }
 
 function JellyfinStep({ label, onDone }: { label: string; onDone: () => void }) {
+  const t = useT();
   const [f, setF] = useState({ hostname: '', port: '8096', username: '', password: '' });
   const m = useMutation({
     mutationFn: () => post('/api/seerr/setup', { ...f, port: Number(f.port) }),
@@ -323,19 +337,19 @@ function JellyfinStep({ label, onDone }: { label: string; onDone: () => void }) 
   const set = (k: keyof typeof f) => (e: { target: { value: string } }) =>
     setF({ ...f, [k]: e.target.value });
   return (
-    <Frame title="Ligar ao Jellyfin" step={label}>
+    <Frame title={t('Ligar ao Jellyfin')} step={label}>
       <p className="muted text-sm">
-        O Seerr usa a conta de administrador do Jellyfin. As credenciais não ficam guardadas.
+        {t('O Seerr usa a conta de administrador do Jellyfin. As credenciais não ficam guardadas.')}
       </p>
       <ErrorNote error={m.error} />
       <form className="space-y-3" onSubmit={(e) => (e.preventDefault(), m.mutate())}>
         <Field
-          label="Endereço do Jellyfin"
-          hint="Visto a partir dos containers, ex.: 192.168.1.114"
+          label={t('Endereço do Jellyfin')}
+          hint={t('Visto a partir dos containers, ex.: 192.168.1.10')}
         >
           <input className="input" value={f.hostname} onChange={set('hostname')} required />
         </Field>
-        <Field label="Porta">
+        <Field label={t('Porta')}>
           <input
             className="input"
             inputMode="numeric"
@@ -344,7 +358,7 @@ function JellyfinStep({ label, onDone }: { label: string; onDone: () => void }) 
             required
           />
         </Field>
-        <Field label="Utilizador">
+        <Field label={t('Utilizador')}>
           <input
             className="input"
             autoComplete="off"
@@ -353,7 +367,7 @@ function JellyfinStep({ label, onDone }: { label: string; onDone: () => void }) 
             required
           />
         </Field>
-        <Field label="Palavra-passe">
+        <Field label={t('Palavra-passe')}>
           <input
             className="input"
             type="password"
@@ -365,10 +379,10 @@ function JellyfinStep({ label, onDone }: { label: string; onDone: () => void }) 
         </Field>
         <div className="flex gap-2">
           <Button variant="primary" type="submit" disabled={m.isPending}>
-            {m.isPending ? 'A ligar…' : 'Ligar'}
+            {m.isPending ? t('A ligar…') : t('Ligar')}
           </Button>
           <Button type="button" variant="ghost" onClick={onDone}>
-            Saltar por agora
+            {t('Saltar por agora')}
           </Button>
         </div>
       </form>
@@ -377,6 +391,7 @@ function JellyfinStep({ label, onDone }: { label: string; onDone: () => void }) 
 }
 
 function ApplyStep({ label, onDone }: { label: string; onDone: () => void }) {
+  const t = useT();
   const plan = useQuery({ queryKey: ['wizard-plan'], queryFn: () => api<Plan>('/api/plan') });
   const apply = useMutation({
     mutationFn: async () => {
@@ -389,13 +404,16 @@ function ApplyStep({ label, onDone }: { label: string; onDone: () => void }) {
   });
   const services = [...new Set(plan.data?.changes.map((c) => c.service))];
   return (
-    <Frame title="Aplicar a configuração" step={label}>
+    <Frame title={t('Aplicar a configuração')} step={label}>
       <ErrorNote error={plan.error ?? apply.error} />
       {plan.data && !apply.data && (
         <p className="muted text-sm">
           {plan.data.changes.length
-            ? `Vão ser alteradas ${plan.data.changes.length} definições em: ${services.join(', ')}.`
-            : 'Tudo já está como pediste.'}
+            ? t('Vão ser alteradas {n} definições em: {services}.', {
+                n: plan.data.changes.length,
+                services: services.join(', '),
+              })
+            : t('Tudo já está como pediste.')}
         </p>
       )}
       {apply.data && (
@@ -416,7 +434,7 @@ function ApplyStep({ label, onDone }: { label: string; onDone: () => void }) {
       )}
       {apply.data && !apply.data.failed.length ? (
         <Button variant="primary" onClick={onDone}>
-          Concluir
+          {t('Concluir')}
         </Button>
       ) : (
         <Button
@@ -424,7 +442,7 @@ function ApplyStep({ label, onDone }: { label: string; onDone: () => void }) {
           onClick={() => apply.mutate()}
           disabled={apply.isPending || plan.isLoading}
         >
-          {apply.isPending ? 'A aplicar…' : 'Aplicar'}
+          {apply.isPending ? t('A aplicar…') : t('Aplicar')}
         </Button>
       )}
     </Frame>

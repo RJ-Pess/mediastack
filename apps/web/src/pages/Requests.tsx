@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, post } from '../api';
+import { useLang, useT } from '../i18n';
 import { Button, Empty, ErrorNote, PageHeader, Poster, Skeleton } from '../ui';
 
 interface Req {
@@ -14,6 +15,8 @@ interface Req {
 const STATUS: Record<number, string> = { 1: 'Pendente', 2: 'Aprovado', 3: 'Recusado' };
 
 export function Requests() {
+  const t = useT();
+  const { locale } = useLang();
   const qc = useQueryClient();
   const q = useQuery({
     queryKey: ['requests'],
@@ -26,7 +29,7 @@ export function Requests() {
   });
   return (
     <>
-      <PageHeader title="Pedidos" />
+      <PageHeader title={t('Pedidos')} />
       <ErrorNote error={q.error ?? approve.error} />
       {q.isLoading ? (
         <Skeleton className="h-40" />
@@ -40,18 +43,20 @@ export function Requests() {
               <div className="min-w-0 flex-1">
                 <p className="truncate font-medium">{r.title}</p>
                 <p className="muted text-sm">
-                  {r.mediaType === 'movie' ? 'Filme' : 'Série'} · {r.requestedBy}
+                  {r.mediaType === 'movie' ? t('Filme') : t('Série')} · {r.requestedBy}
                 </p>
-                <p className="muted text-xs">{new Date(r.createdAt).toLocaleDateString('pt-PT')}</p>
+                <p className="muted text-xs">{new Date(r.createdAt).toLocaleDateString(locale)}</p>
                 <div className="mt-2 flex items-center gap-2">
-                  <span className="text-sm">{STATUS[r.status] ?? r.status}</span>
+                  <span className="text-sm">
+                    {STATUS[r.status] ? t(STATUS[r.status]!) : r.status}
+                  </span>
                   {r.status === 1 && (
                     <Button
                       variant="primary"
                       onClick={() => approve.mutate(r.id)}
                       disabled={approve.isPending}
                     >
-                      Aprovar
+                      {t('Aprovar')}
                     </Button>
                   )}
                 </div>
@@ -60,7 +65,7 @@ export function Requests() {
           ))}
         </ul>
       ) : (
-        <Empty>Ainda não há pedidos. Usa ⌘K para pedir um filme ou série.</Empty>
+        <Empty>{t('Ainda não há pedidos. Usa ⌘K para pedir um filme ou série.')}</Empty>
       )}
     </>
   );

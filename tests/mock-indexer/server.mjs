@@ -14,8 +14,17 @@ function torrent() {
   const length = pieceLen * 2;
   const pieces = Buffer.concat([0, 1].map((i) => createHash('sha1').update(`cais-${i}`).digest()));
   const info = Buffer.concat([
-    Buffer.from('d'), bstr('length'), bint(length), bstr('name'), bstr(TITLE),
-    bstr('piece length'), bint(pieceLen), bstr('pieces'), Buffer.from(`${pieces.length}:`), pieces, Buffer.from('e'),
+    Buffer.from('d'),
+    bstr('length'),
+    bint(length),
+    bstr('name'),
+    bstr(TITLE),
+    bstr('piece length'),
+    bint(pieceLen),
+    bstr('pieces'),
+    Buffer.from(`${pieces.length}:`),
+    pieces,
+    Buffer.from('e'),
   ]);
   return Buffer.concat([Buffer.from('d'), bstr('info'), info, Buffer.from('e')]);
 }
@@ -39,7 +48,9 @@ createServer((req, res) => {
   if (url.pathname === '/download/test.torrent') {
     res.writeHead(200, { 'Content-Type': 'application/x-bittorrent' }).end(torrent());
   } else if (url.pathname === '/api') {
-    res.writeHead(200, { 'Content-Type': 'application/xml' }).end(url.searchParams.get('t') === 'caps' ? caps : feed(base));
+    res
+      .writeHead(200, { 'Content-Type': 'application/xml' })
+      .end(url.searchParams.get('t') === 'caps' ? caps : feed(base));
   } else {
     res.writeHead(404).end();
   }
