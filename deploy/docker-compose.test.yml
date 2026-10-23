@@ -6,7 +6,7 @@ services:
     networks: [mediastack]
     ports: ['18096:8096']
   mock-indexer:
-    image: node:22-alpine
+    image: node:25-alpine
     container_name: mock-indexer
     command: ['node', '/srv/server.mjs']
     volumes: ['../tests/mock-indexer:/srv:ro']
