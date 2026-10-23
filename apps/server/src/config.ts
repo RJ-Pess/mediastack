@@ -16,6 +16,7 @@ const schema = z.object({
   MEDIASTACK_RADARR_URL: z.string().default('http://radarr:7878'),
   MEDIASTACK_BAZARR_URL: z.string().default('http://bazarr:6767'),
   MEDIASTACK_PROWLARR_URL: z.string().default('http://prowlarr:9696'),
+  MEDIASTACK_QBITTORRENT_USER: z.string().default('mediastack'),
   MEDIASTACK_QBITTORRENT_URL: z.string().default('http://qbittorrent:8080'),
   MEDIASTACK_BYPARR_URL: z.string().default('http://byparr:8191'),
 });

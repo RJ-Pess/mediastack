@@ -1,7 +1,22 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-export type QualityChoice = '1080p' | '4k' | 'both';
+/** `keep` = não mexer nos perfis de qualidade existentes. */
+export type QualityChoice = '1080p' | '4k' | 'both' | 'keep';
+/** `keep` = não mexer nos nomes. Os restantes usam os presets TRaSH para esse media server. */
+export type NamingScheme = 'keep' | 'jellyfin' | 'plex' | 'emby';
+
+export interface RecyclarrRequest {
+  quality: QualityChoice;
+  naming: NamingScheme;
+}
+
+/** Presets de nomes dos TRaSH Guides (`media_naming` do Recyclarr). */
+const NAMING: Record<Exclude<NamingScheme, 'keep'>, { radarr: string; sonarrSeries: string }> = {
+  jellyfin: { radarr: 'jellyfin-tmdb', sonarrSeries: 'jellyfin-tvdb' },
+  plex: { radarr: 'plex-tmdb', sonarrSeries: 'plex-tvdb' },
+  emby: { radarr: 'emby-tmdb', sonarrSeries: 'emby-tvdb' },
+};
 
 interface Templates {
   radarr: string[];
@@ -10,6 +25,7 @@ interface Templates {
 
 /** Templates TRaSH oficiais do Recyclarr (`config create -t <nome>`) por escolha. */
 export const TEMPLATES: Record<QualityChoice, Templates> = {
+  keep: { radarr: [], sonarr: [] },
   '1080p': { radarr: ['hd-bluray-web'], sonarr: ['web-1080p'] },
   '4k': { radarr: ['uhd-bluray-web'], sonarr: ['web-2160p'] },
   both: { radarr: ['hd-bluray-web', 'uhd-bluray-web'], sonarr: ['web-1080p', 'web-2160p'] },
@@ -31,10 +47,19 @@ export interface ServiceLink {
   key: string;
 }
 
-/** Ficheiro `request.env` lido pelo sync.sh (formato sh). Os valores são todos controlados pelo Cais. */
-export function renderRequest(q: QualityChoice, radarr: ServiceLink, sonarr: ServiceLink): string {
+/** Ficheiro `request.env` lido pelo sync.sh (formato sh). Os valores são todos controlados pelo MediaStack. */
+export function renderRequest(
+  req: RecyclarrRequest,
+  radarr: ServiceLink,
+  sonarr: ServiceLink,
+): string {
+  const q = req.quality;
+  const naming = req.naming === 'keep' ? null : NAMING[req.naming];
   return [
-    `CAIS_QUALITY=${q}`,
+    `MEDIASTACK_QUALITY=${q}`,
+    `MEDIASTACK_NAMING=${req.naming}`,
+    `RADARR_NAMING=${naming?.radarr ?? ''}`,
+    `SONARR_NAMING_SERIES=${naming?.sonarrSeries ?? ''}`,
     `RADARR_URL=${radarr.url}`,
     `RADARR_KEY=${radarr.key}`,
     `RADARR_TEMPLATES="${TEMPLATES[q].radarr.join(' ')}"`,
@@ -45,12 +70,21 @@ export function renderRequest(q: QualityChoice, radarr: ServiceLink, sonarr: Ser
   ].join('\n');
 }
 
-export function readRequestedQuality(dir: string): QualityChoice | null {
+export function readRequest(dir: string): RecyclarrRequest | null {
   const file = join(dir, 'request.env');
   if (!existsSync(file)) return null;
-  const m = /^CAIS_QUALITY=(1080p|4k|both)$/m.exec(readFileSync(file, 'utf8'));
-  return (m?.[1] as QualityChoice | undefined) ?? null;
+  const text = readFileSync(file, 'utf8');
+  const quality = /^MEDIASTACK_QUALITY=(1080p|4k|both|keep)$/m.exec(text)?.[1] as
+    QualityChoice | undefined;
+  if (!quality) return null;
+  const naming = /^MEDIASTACK_NAMING=(keep|jellyfin|plex|emby)$/m.exec(text)?.[1] as
+    NamingScheme | undefined;
+  // Pedidos escritos antes de existir o esquema de nomes não mexiam nos nomes.
+  return { quality, naming: naming ?? 'keep' };
 }
+
+export const readRequestedQuality = (dir: string): QualityChoice | null =>
+  readRequest(dir)?.quality ?? null;
 
 /** Escreve o pedido (modo 0600: tem as chaves) e pede uma sincronização. */
 export function requestSync(dir: string, content: string): void {

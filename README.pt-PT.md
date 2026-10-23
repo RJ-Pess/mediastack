@@ -15,6 +15,8 @@
 - **Deteção de drift** – avisa quando alguém altera algo diretamente na UI de um serviço; podes adotar a alteração ou repor o valor desejado.
 - **Nunca apaga o que não criou.**
 - **Verificação de hardlinks** – o wizard cria mesmo um ficheiro, faz o hardlink e compara inodes; um mount partido é detetado antes de duplicar o uso de disco em silêncio.
+- **Qualidade e nomes dos TRaSH Guides** – escolhes 1080p / 4K / ambos e um esquema de nomes (Jellyfin, Plex, Emby); o container oficial do Recyclarr aplica-os. Sem socket do Docker.
+- **Modo importar** – já tens Sonarr/Radarr/… a correr? Aponta o MediaStack para eles (URL + API key), revê o que ele percebeu e aceita; nada muda nos teus serviços até aplicares.
 - **UI unificada** – fila de atividade, calendário, biblioteca, pedidos (com aprovação rápida), pesquisa global (⌘K), responsiva, tema escuro/claro, PT-PT e inglês.
 
 O MediaStack **não** reimplementa nenhum destes serviços. Downloads, importação, legendas e indexação ficam nos projetos originais.
@@ -60,6 +62,7 @@ Se já existir outra stack *arr no mesmo host não há conflitos por defeito: s�
 - Login obrigatório (argon2id, cookie de sessão `httpOnly` + `SameSite=Strict`, bloqueio após falhas repetidas).
 - Segredos de terceiros cifrados em repouso com AES-256-GCM, com chave derivada de `MEDIASTACK_SECRET` (ou de um segredo gerado no primeiro arranque).
 - As API keys dos serviços ficam em ficheiros em `config/mediastack/secrets/`, montados só-leitura nos serviços que precisam – o mesmo nível de confiança dos `config.xml` que os serviços já guardam.
+- O Sonarr, Radarr e Prowlarr correm com autenticação `External` (a API continua a exigir a chave gerada). As portas deles **não são publicadas**, por isso só o MediaStack lhes chega; se publicares uma porta para abrir uma UI nativa, protege-a com o teu reverse proxy ou ativa a autenticação no compose.
 - O socket do Docker **nunca** é montado. O container do MediaStack é não-root, `no-new-privileges`, `cap_drop: ALL`. O `mediastack-init` (efémero) corre como root só com `CHOWN`, `DAC_OVERRIDE` e `FOWNER`.
 - Sem telemetria. As únicas ligações externas são consultas ao TMDB e o que os próprios serviços fazem.
 
@@ -105,15 +108,17 @@ Estrutura: `apps/server` (API Fastify, bootstrap, reconciliador), `apps/web` (UI
 ## Roteiro
 
 - [x] Bootstrap e ligações automáticas
-- [x] Plan/apply, auditoria, deteção de drift (armazenamento, downloads, legendas)
+- [x] Plan/apply, auditoria, deteção de drift (armazenamento, downloads, legendas, qualidade, nomes, backups, notificações)
 - [x] Wizard, painel, atividade, calendário, biblioteca, pedidos, pesquisa ⌘K, UI PT/EN
-- [ ] Gestão de indexadores (listar/ativar/testar) na UI
-- [ ] Perfis de qualidade via [Recyclarr](https://recyclarr.dev) / TRaSH Guides, esquemas de nomes
-- [ ] Notificações (ntfy / Telegram / Discord) replicadas para todos os serviços
-- [ ] Exportar/importar configuração e backups agendados
-- [ ] Adotar uma instalação existente (modo importar)
+- [x] Gestão de indexadores (listar / adicionar públicos / ativar / testar / remover)
+- [x] Perfis de qualidade e nomes de ficheiros via [Recyclarr](https://recyclarr.dev) / TRaSH Guides
+- [x] Um destino de notificações (ntfy / Discord / Telegram) replicado no Sonarr, Radarr e Prowlarr
+- [x] Exportar/importar configuração (YAML) e backups nativos (agenda, retenção, "fazer agora")
+- [x] Modo importar: ligar a uma instalação existente, ler as definições, não alterar nada até aplicares
+- [ ] Notificações para o Bazarr (Apprise) e o Seerr
+- [ ] Indexadores privados (credenciais) na UI
 - [ ] Horários de limites de velocidade, seeding por tempo
-- [ ] Imagem multi-arch publicada no GHCR com scan Trivy no CI
+- [ ] Imagem multi-arch publicada no GHCR com scan Trivy no CI (pipeline pronto, primeira release por fazer)
 
 ## Contribuir
 

@@ -3,11 +3,21 @@ import { ArrowRight } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { api, post } from '../api';
 import { useLang, useT } from '../i18n';
+import { Adopt } from './Adopt';
+import { Backups } from './Backups';
 import { Indexers } from './Indexers';
 import { Button, Card, Dot, ErrorNote, PageHeader, Skeleton } from '../ui';
 
 interface Desired {
-  quality: { profile: '1080p' | '4k' | 'both' };
+  notifications: {
+    type: 'none' | 'ntfy' | 'discord' | 'telegram';
+    ntfyServerUrl: string;
+    ntfyTopic: string;
+    telegramChatId: string;
+  };
+  naming: { scheme: 'keep' | 'jellyfin' | 'plex' | 'emby' };
+  backups: { intervalDays: number; retentionDays: number };
+  quality: { profile: '1080p' | '4k' | 'both' | 'keep' };
   subtitles: { languages: string[] };
   storage: {
     tvRoot: string;
@@ -58,6 +68,7 @@ const QUALITIES: [Desired['quality']['profile'], string][] = [
   ['1080p', '1080p (Full HD)'],
   ['4k', '4K (Ultra HD)'],
   ['both', 'Ambos (1080p e 4K)'],
+  ['keep', 'Manter os perfis atuais'],
 ];
 
 const LANGS: [string, string][] = [
@@ -139,6 +150,22 @@ export function Settings() {
   const adopt = useMutation({
     mutationFn: (fieldId: string) => post('/api/drift/adopt', { fieldId }),
     onSuccess: refresh,
+  });
+
+  const notif = useQuery({
+    queryKey: ['notifications'],
+    queryFn: () => api<{ hasSecret: boolean }>('/api/notifications'),
+  });
+  const [secret, setSecret] = useState('');
+  const saveSecret = useMutation({
+    mutationFn: () => api('/api/notifications/secret', { method: 'PUT', body: { value: secret } }),
+    onSuccess: async () => {
+      setSecret('');
+      await Promise.all([refresh(), qc.invalidateQueries({ queryKey: ['notifications'] })]);
+    },
+  });
+  const testNotif = useMutation({
+    mutationFn: () => post<{ ok: boolean; message?: string }>('/api/notifications/test'),
   });
 
   if (!value)
@@ -374,6 +401,160 @@ export function Settings() {
                 ` · ${new Date(quality.data.sync.at).toLocaleString(locale)}`}
             </p>
           </Section>
+          <Section title="Nomes de ficheiros" affects="Sonarr, Radarr">
+            <Row label={t('Esquema (TRaSH Guides)')}>
+              <select
+                className="input"
+                value={value.naming.scheme}
+                onChange={(e) =>
+                  set((d) => {
+                    d.naming.scheme = e.target.value as Desired['naming']['scheme'];
+                  })
+                }
+              >
+                <option value="keep">{t('Manter os atuais')}</option>
+                <option value="jellyfin">Jellyfin</option>
+                <option value="plex">Plex</option>
+                <option value="emby">Emby</option>
+              </select>
+            </Row>
+          </Section>
+          <Section title="Agenda de backups" affects="Sonarr, Radarr, Prowlarr">
+            <div className="grid grid-cols-2 gap-3">
+              <Row label={t('Intervalo (dias)')}>
+                <input
+                  className="input"
+                  inputMode="numeric"
+                  value={value.backups.intervalDays}
+                  onChange={(e) =>
+                    set((d) => {
+                      d.backups.intervalDays = Math.min(
+                        30,
+                        Math.max(1, Number(e.target.value) || 1),
+                      );
+                    })
+                  }
+                />
+              </Row>
+              <Row label={t('Retenção (dias)')}>
+                <input
+                  className="input"
+                  inputMode="numeric"
+                  value={value.backups.retentionDays}
+                  onChange={(e) =>
+                    set((d) => {
+                      d.backups.retentionDays = Math.min(
+                        365,
+                        Math.max(1, Number(e.target.value) || 1),
+                      );
+                    })
+                  }
+                />
+              </Row>
+            </div>
+          </Section>
+          <Section title="Notificações" affects="Sonarr, Radarr, Prowlarr">
+            <Row label={t('Destino')}>
+              <select
+                className="input"
+                value={value.notifications.type}
+                onChange={(e) =>
+                  set((d) => {
+                    d.notifications.type = e.target.value as Desired['notifications']['type'];
+                  })
+                }
+              >
+                <option value="none">{t('Desligadas')}</option>
+                <option value="ntfy">ntfy</option>
+                <option value="discord">Discord</option>
+                <option value="telegram">Telegram</option>
+              </select>
+            </Row>
+            {value.notifications.type === 'ntfy' && (
+              <div className="grid grid-cols-2 gap-3">
+                <Row label={t('Servidor ntfy')}>
+                  <input
+                    className="input"
+                    value={value.notifications.ntfyServerUrl}
+                    onChange={(e) =>
+                      set((d) => {
+                        d.notifications.ntfyServerUrl = e.target.value;
+                      })
+                    }
+                  />
+                </Row>
+                <Row label={t('Tópico')}>
+                  <input
+                    className="input"
+                    value={value.notifications.ntfyTopic}
+                    onChange={(e) =>
+                      set((d) => {
+                        d.notifications.ntfyTopic = e.target.value;
+                      })
+                    }
+                  />
+                </Row>
+              </div>
+            )}
+            {value.notifications.type === 'telegram' && (
+              <Row label={t('ID do chat')}>
+                <input
+                  className="input"
+                  value={value.notifications.telegramChatId}
+                  onChange={(e) =>
+                    set((d) => {
+                      d.notifications.telegramChatId = e.target.value;
+                    })
+                  }
+                />
+              </Row>
+            )}
+            {value.notifications.type !== 'none' && (
+              <div className="space-y-2">
+                <Row
+                  label={
+                    value.notifications.type === 'discord'
+                      ? t('URL do webhook')
+                      : value.notifications.type === 'telegram'
+                        ? t('Token do bot')
+                        : t('Token de acesso (opcional)')
+                  }
+                >
+                  <input
+                    className="input"
+                    type="password"
+                    autoComplete="off"
+                    value={secret}
+                    placeholder={notif.data?.hasSecret ? t('Guardado (cifrado)') : ''}
+                    onChange={(e) => setSecret(e.target.value)}
+                  />
+                </Row>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    onClick={() => saveSecret.mutate()}
+                    disabled={!secret.trim() || saveSecret.isPending}
+                  >
+                    {t('Guardar segredo')}
+                  </Button>
+                  <Button onClick={() => testNotif.mutate()} disabled={testNotif.isPending}>
+                    {t('Enviar teste')}
+                  </Button>
+                </div>
+                <ErrorNote error={saveSecret.error} />
+                {testNotif.data && (
+                  <p
+                    role="status"
+                    className="text-sm"
+                    style={{ color: testNotif.data.ok ? 'var(--ok)' : 'var(--bad)' }}
+                  >
+                    {testNotif.data.ok
+                      ? t('Teste enviado')
+                      : (testNotif.data.message ?? t('Falhou'))}
+                  </p>
+                )}
+              </div>
+            )}
+          </Section>
           <Section title="Legendas" affects="Bazarr">
             <fieldset className="space-y-1">
               <legend className="sr-only">{t('Idiomas das legendas')}</legend>
@@ -442,6 +623,8 @@ export function Settings() {
             ))}
           </Card>
           <Indexers />
+          <Backups />
+          <Adopt />
           <Card>
             <h2 className="mb-3 font-semibold">{t('Histórico')}</h2>
             <ul className="max-h-72 space-y-1 overflow-auto text-xs">

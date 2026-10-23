@@ -52,9 +52,11 @@ function fakeCtx() {
     get: async (path: string) =>
       path === 'rootfolder'
         ? state.roots[app]!.map((p) => ({ path: p }))
-        : path === 'qualityprofile'
-          ? [{ name: 'HD Bluray + WEB' }, { name: 'WEB-1080p' }]
-          : [{ name: 'MediaStack qBittorrent', fields: [{ name: field, value: state[key] }] }],
+        : path === 'config/host'
+          ? { id: 1, backupInterval: 7, backupRetention: 28 }
+          : path === 'qualityprofile'
+            ? [{ name: 'HD Bluray + WEB' }, { name: 'WEB-1080p' }]
+            : [{ name: 'MediaStack qBittorrent', fields: [{ name: field, value: state[key] }] }],
     request: async (_m: string, _p: string, body: { path: string }) =>
       void state.roots[app]!.push(body.path),
     ensure: async (_c: string, _n: string, _i: string, f: Record<string, string>) => {
@@ -64,7 +66,13 @@ function fakeCtx() {
   });
   const ctx = {
     seerr: null,
+    prowlarr: {
+      get: async (path: string) =>
+        path === 'notification' ? [] : { id: 1, backupInterval: 7, backupRetention: 28 },
+      request: async () => undefined,
+    },
     config: loadConfig({}),
+    getSecret: () => undefined,
     secrets: { 'radarr.key': 'rk', 'sonarr.key': 'sk' },
     recyclarrDir: mkdtempSync(join(tmpdir(), 'mediastack-rcl-')),
     bazarr,
@@ -90,6 +98,7 @@ describe('plan/apply', () => {
     d.storage.extraMoviesRoots = ['/data/media/filmes-bons'];
 
     const p1 = await plan(ctx, d);
+    expect(p1.errors).toEqual([]);
     expect(p1.changes.map((c) => c.fieldId)).toEqual([
       'bazarr.languages.enabled',
       'bazarr.profile',

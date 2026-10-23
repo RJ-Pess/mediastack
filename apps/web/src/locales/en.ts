@@ -173,11 +173,77 @@ export const en: Record<string, string> = {
   'ainda não sincronizado': 'not synced yet',
   'Os perfis de qualidade vêm dos TRaSH Guides, aplicados pelo Recyclarr. Os idiomas das legendas ficam por ordem de preferência.':
     'Quality profiles come from the TRaSH Guides, applied by Recyclarr. Subtitle languages are in order of preference.',
-  'field:recyclarr.request': 'Quality profile requested from Recyclarr',
+  'field:recyclarr.request': 'Quality profile and naming requested from Recyclarr',
   'field:radarr.qualityprofiles': 'TRaSH quality profiles',
   'field:sonarr.qualityprofiles': 'TRaSH quality profiles',
   'field:seerr.profile.radarr': 'Default profile in Seerr (movies)',
   'field:seerr.profile.sonarr': 'Default profile in Seerr (series)',
+
+  // Importar instalação existente
+  'Importar uma instalação existente': 'Import an existing installation',
+  'Nada é alterado nos serviços até aplicares as definições.':
+    'Nothing is changed in the services until you apply the settings.',
+  'Modo importar ativo: o MediaStack usa estes serviços.':
+    'Import mode is on: MediaStack is using these services.',
+  'Rever o que será importado': 'Review what will be imported',
+  'Voltar a usar os serviços do stack do MediaStack?':
+    'Go back to the services of the MediaStack stack?',
+  Desligar: 'Disconnect',
+  'Testar ligações': 'Test connections',
+  'O estado desejado já coincide com a instalação.':
+    'The desired state already matches the installation.',
+  'Aceitar como estado desejado': 'Accept as desired state',
+  'Importado: revê o plano acima': 'Imported: review the plan above',
+  'Manter os perfis atuais': 'Keep the current profiles',
+  'ligação falhou': 'connection failed',
+
+  // Notificações
+  Notificações: 'Notifications',
+  Destino: 'Destination',
+  Desligadas: 'Off',
+  'Servidor ntfy': 'ntfy server',
+  Tópico: 'Topic',
+  'ID do chat': 'Chat ID',
+  'URL do webhook': 'Webhook URL',
+  'Token do bot': 'Bot token',
+  'Token de acesso (opcional)': 'Access token (optional)',
+  'Guardado (cifrado)': 'Saved (encrypted)',
+  'Guardar segredo': 'Save secret',
+  'Enviar teste': 'Send test',
+  'Teste enviado': 'Test sent',
+  'segredo inválido': 'invalid secret',
+  'as notificações ainda não estão aplicadas': 'notifications are not applied yet',
+  'field:sonarr.notification': 'Notification destination',
+  'field:radarr.notification': 'Notification destination',
+  'field:prowlarr.notification': 'Notification destination',
+
+  // Nomes, backups
+  'Nomes de ficheiros': 'File names',
+  'Esquema (TRaSH Guides)': 'Scheme (TRaSH Guides)',
+  'Manter os atuais': 'Keep the current ones',
+  'Agenda de backups': 'Backup schedule',
+  'Intervalo (dias)': 'Interval (days)',
+  'Retenção (dias)': 'Retention (days)',
+  'Backup e restauro': 'Backup and restore',
+  'Configuração do MediaStack (YAML)': 'MediaStack configuration (YAML)',
+  'Incluir segredos (cifrados)': 'Include secrets (encrypted)',
+  Exportar: 'Export',
+  Importar: 'Import',
+  'Ficheiro YAML a importar': 'YAML file to import',
+  'Importar também os segredos do ficheiro': 'Also import the secrets in the file',
+  'Configuração importada. Revê o plano e aplica.':
+    'Configuration imported. Review the plan and apply.',
+  'Backups dos serviços': 'Service backups',
+  'Fazer backup agora': 'Back up now',
+  'Ainda não há backups.': 'No backups yet.',
+  'Os backups ficam na pasta de configuração de cada serviço.':
+    "Backups are stored in each service's config folder.",
+  'field:sonarr.backup.interval': 'Backup interval (days)',
+  'field:radarr.backup.interval': 'Backup interval (days)',
+  'field:prowlarr.backup.interval': 'Backup interval (days)',
+  'field:sonarr.backup.retention': 'Backup retention (days)',
+  'field:radarr.backup.retention': 'Backup retention (days)',
+  'field:prowlarr.backup.retention': 'Backup retention (days)',
 
   // Indexadores
   Indexadores: 'Indexers',
@@ -192,6 +258,9 @@ export const en: Record<string, string> = {
     'Private indexers need credentials: set them up in the Prowlarr UI.',
 
   // Mensagens de erro do servidor
+  'yaml obrigatório': 'yaml is required',
+  'ficheiro não é um export do MediaStack (versão 1)':
+    'file is not a MediaStack export (version 1)',
   'não autenticado': 'not authenticated',
   'já configurado': 'already configured',
   'credenciais inválidas': 'invalid credentials',

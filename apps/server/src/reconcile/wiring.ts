@@ -48,7 +48,7 @@ export async function wireServices(
           host: new URL(c.MEDIASTACK_QBITTORRENT_URL).hostname,
           port: Number(new URL(c.MEDIASTACK_QBITTORRENT_URL).port || 80),
           useSsl: false,
-          username: 'mediastack',
+          username: c.MEDIASTACK_QBITTORRENT_USER,
           password: s['qbittorrent.password'],
           [categoryField]: category,
         },

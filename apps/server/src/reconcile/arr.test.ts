@@ -68,17 +68,17 @@ describe('ArrClient.ensure', () => {
   it('campos createOnly (geridos pelo plan) não são repostos', async () => {
     const fake = fakeArr();
     const c = new ArrClient('Sonarr', 'http://x', 'k', 'v3', fake.fetchImpl);
-    await c.ensure('downloadclient', 'Cais qBittorrent', 'QBittorrent', {
+    await c.ensure('downloadclient', 'MediaStack qBittorrent', 'QBittorrent', {
       host: 'a',
       password: 'pw',
     });
     fake.mask();
     const want = { host: 'b', password: 'pw' }; // "host" mudou entretanto (feito pelo plan)
     expect(
-      await c.ensure('downloadclient', 'Cais qBittorrent', 'QBittorrent', want, {}, ['host']),
+      await c.ensure('downloadclient', 'MediaStack qBittorrent', 'QBittorrent', want, {}, ['host']),
     ).toBe('unchanged');
     // sem createOnly o reconcile repunha o valor
-    expect(await c.ensure('downloadclient', 'Cais qBittorrent', 'QBittorrent', want)).toBe(
+    expect(await c.ensure('downloadclient', 'MediaStack qBittorrent', 'QBittorrent', want)).toBe(
       'updated',
     );
   });

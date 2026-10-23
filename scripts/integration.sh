@@ -60,6 +60,14 @@ done
 c "localhost:$PORT/api/plan" | json "assert d['changes']==[] and d['errors']==[], d" || fail "o plano inicial não convergiu: $(c "localhost:$PORT/api/plan") audit: $(c "localhost:$PORT/api/audit")"
 c "localhost:$PORT/api/audit" | grep -q '"status":"error"' && fail "apply inicial com erros: $(c "localhost:$PORT/api/audit")"
 
+# O plano converge assim que os perfis existem, mas o Recyclarr ainda pode estar a processar
+# as restantes configs (nomes): espera pelo fim da sincronização.
+for _ in $(seq 1 60); do
+  c "localhost:$PORT/api/quality" | json "import sys;sys.exit(0 if d['sync']['status']=='ok' else 1)" 2>/dev/null && break
+  sleep 3
+done
+c "localhost:$PORT/api/quality" | json "assert d['sync']['status']=='ok', d" || fail "o Recyclarr não terminou com sucesso: $(c "localhost:$PORT/api/quality")"
+
 # 1. Cada serviço aceita a chave gerada
 for s in sonarr:8989:v3 radarr:7878:v3 prowlarr:9696:v1; do
   IFS=: read -r n p v <<<"$s"
@@ -90,16 +98,28 @@ BPROF | json "p=[x for x in d if x['name']=='MediaStack'];assert [i['language'] 
 api http://radarr:7878/api/v3/qualityprofile "$(H radarr)" | grep -c 'HD Bluray + WEB' >/dev/null || fail "Radarr sem o perfil TRaSH 'HD Bluray + WEB'"
 api http://sonarr:8989/api/v3/qualityprofile "$(H sonarr)" | grep -c 'WEB-1080p' >/dev/null || fail "Sonarr sem o perfil TRaSH 'WEB-1080p'"
 
+# 5d. Nomes TRaSH (Jellyfin) aplicados pelo Recyclarr
+api http://radarr:7878/api/v3/config/naming "$(H radarr)" | grep -c 'tmdb' >/dev/null || fail "Radarr sem o esquema de nomes TRaSH (Jellyfin)"
+api http://sonarr:8989/api/v3/config/naming "$(H sonarr)" | grep -c 'tvdb' >/dev/null || fail "Sonarr sem o esquema de nomes TRaSH (Jellyfin)"
+
+apply_ok() {
+  local out
+  out=$(c -X POST -d '{}' "$MEDIASTACK/api/apply")
+  json "assert not d['failed'], d" <<<"$out" || fail "$1: $out"
+}
+
 # 6. Plan/apply: mudar a categoria e um limite no MediaStack altera o valor real nos serviços
 MEDIASTACK="localhost:$PORT"
-D=$(c "$MEDIASTACK/api/desired" | json "d['downloads']['categories']['tv']='series';d['downloads']['downKiBps']=2048;d['subtitles']['languages']=['pt','pb'];print(json.dumps(d))")
+D=$(c "$MEDIASTACK/api/desired" | json "d['downloads']['categories']['tv']='series';d['downloads']['downKiBps']=2048;d['subtitles']['languages']=['pt','pb'];d['backups']['intervalDays']=3;print(json.dumps(d))")
 c -X PUT -d "$D" "$MEDIASTACK/api/desired" >/dev/null
 PLAN=$(c "$MEDIASTACK/api/plan")
 echo "$PLAN" | json "assert {c['fieldId'] for c in d['changes']}>={'sonarr.downloadclient.category','qbittorrent.limit.down'}, d" || fail "plan sem as alterações esperadas: $PLAN"
-c -X POST -d '{}' "$MEDIASTACK/api/apply" | json "assert not d['failed'], d" || fail "apply falhou"
+apply_ok "apply falhou"
 api http://sonarr:8989/api/v3/downloadclient "$(H sonarr)" | grep -c '"value": "series"' >/dev/null || fail "categoria não mudou no Sonarr"
 BPROF | json "p=[x for x in d if x['name']=='MediaStack'];assert [i['language'] for i in p[0]['items']]==['pt','pb'], d" || fail "idiomas não mudaram no Bazarr"
 c "$MEDIASTACK/api/plan" | json "assert d['changes']==[] and d['errors']==[], d" || fail "segundo plan não está vazio"
+
+api http://sonarr:8989/api/v3/config/host "$(H sonarr)" | grep -c '"backupInterval": 3' >/dev/null || fail "agenda de backups não chegou ao Sonarr"
 
 # 7. Drift: alteração direta no qBittorrent é detetada
 QB="http://qbittorrent:8080/api/v2"
@@ -141,6 +161,36 @@ api "http://prowlarr:9696/api/v1/indexer/$NEW" "$(H prowlarr)" | grep -c '"enabl
 c -X DELETE "$MEDIASTACK/api/indexers/$NEW" | grep -q '"ok":true' || fail "remoção falhou"
 c "$MEDIASTACK/api/indexers" | json "assert d['installed']==[], d" || fail "indexador ficou instalado depois de removido"
 
+# 7d. Backups nativos e exportar/importar o estado desejado
+c -X POST -d '{}' "$MEDIASTACK/api/backups/run" | json "assert all(x['ok'] for x in d), d" || fail "pedido de backup falhou"
+for _ in $(seq 1 20); do c "$MEDIASTACK/api/backups" | grep -c sonarr >/dev/null && break; sleep 2; done
+c "$MEDIASTACK/api/backups" | json "assert {b['service'] for b in d}>={'sonarr','radarr','prowlarr'}, d" || fail "backups em falta"
+EXPORT=$(c "$MEDIASTACK/api/export")
+grep -c 'profile: 1080p' <<<"$EXPORT" >/dev/null || fail "export sem a qualidade: $EXPORT"
+grep -c 'secrets:' <<<"$EXPORT" >/dev/null && fail "o export sem segredos trouxe segredos"
+CHANGED=$(sed 's/profile: 1080p/profile: both/' <<<"$EXPORT")
+c -X POST -d "$(python3 -c "import json,sys;print(json.dumps({'yaml':sys.argv[1]}))" "$CHANGED")" "$MEDIASTACK/api/import" | json "assert d['desired']['quality']['profile']=='both', d" || fail "import falhou"
+c "$MEDIASTACK/api/desired" | json "assert d['quality']['profile']=='both', d" || fail "import não alterou o estado desejado"
+c -X POST -d "$(python3 -c "import json,sys;print(json.dumps({'yaml':sys.argv[1]}))" "$EXPORT")" "$MEDIASTACK/api/import" >/dev/null
+c "$MEDIASTACK/api/desired" | json "assert d['quality']['profile']=='1080p', d" || fail "restauro do estado falhou"
+c -X POST -d '{"yaml":"isto não é um export"}' "$MEDIASTACK/api/import" | grep -c 'não é um export' >/dev/null || fail "import devia rejeitar lixo"
+
+# 7e. Notificações: ntfy replicado nos três *arr (sem segredo) e removido ao desligar
+ND=$(c "$MEDIASTACK/api/desired" | json "d['notifications']['type']='ntfy';d['notifications']['ntfyTopic']='mediastack-ci';print(json.dumps(d))")
+c -X PUT -d "$ND" "$MEDIASTACK/api/desired" >/dev/null
+apply_ok "apply das notificações falhou"
+for s_ in sonarr:8989:v3 radarr:7878:v3 prowlarr:9696:v1; do
+  IFS=: read -r n p v <<<"$s_"
+  api "http://$n:$p/api/$v/notification" "$(H "$n")" | grep -c '"implementation": "Ntfy"' >/dev/null || fail "$n sem a notificação ntfy"
+done
+ND=$(c "$MEDIASTACK/api/desired" | json "d['notifications']['type']='none';print(json.dumps(d))")
+c -X PUT -d "$ND" "$MEDIASTACK/api/desired" >/dev/null
+apply_ok "apply (desligar notificações) falhou"
+for s_ in sonarr:8989:v3 radarr:7878:v3 prowlarr:9696:v1; do
+  IFS=: read -r n p v <<<"$s_"
+  api "http://$n:$p/api/$v/notification" "$(H "$n")" | grep -c 'MediaStack' >/dev/null && fail "$n ficou com a notificação do MediaStack"
+done
+
 # 8. Hardlinks: o mount único funciona; dois mounts separados geram aviso (critério 4)
 HL() { docker run --rm --user 0 "$@" mediastack:dev node dist/index.js hardlink-check /data/torrents /data/media; }
 c -X POST -d "{}" "$MEDIASTACK/api/storage/hardlink-check" | json "assert all(x['ok'] for x in d), d" || fail "hardlinks falham no stack (mount único)"
@@ -148,5 +198,22 @@ docker volume create mediastack-hl-a >/dev/null; docker volume create mediastack
 OUT=$(HL -v mediastack-hl-a:/data/torrents -v mediastack-hl-b:/data/media || true)
 docker volume rm mediastack-hl-a mediastack-hl-b >/dev/null
 grep -q '"reason":"different_mounts"' <<<"$OUT" || fail "mount partido não foi detetado: $OUT"
+
+# 9. Modo importar: o próprio stack serve de "instalação existente". O estado derivado só do que
+# os serviços têm tem de coincidir com o real: depois de aceitar, o plano fica vazio.
+SVC="{\"sonarr\":{\"url\":\"http://sonarr:8989\",\"key\":\"$(key sonarr.key)\"},\"radarr\":{\"url\":\"http://radarr:7878\",\"key\":\"$(key radarr.key)\"},\"prowlarr\":{\"url\":\"http://prowlarr:9696\",\"key\":\"$(key prowlarr.key)\"},\"bazarr\":{\"url\":\"http://bazarr:6767\",\"key\":\"$(key bazarr.key)\"},\"qbittorrent\":{\"url\":\"http://qbittorrent:8080\",\"username\":\"mediastack\",\"key\":\"$(key qbittorrent.password)\"}}"
+c -X POST -d "{\"services\":$SVC}" "$MEDIASTACK/api/adopt/test" | json "assert all(x['ok'] for x in d), d" || fail "teste das ligações de importação falhou"
+BAD=$(c -X POST -d '{"services":{"sonarr":{"url":"http://sonarr:8989","key":"chave-errada"}}}' "$MEDIASTACK/api/adopt/connect")
+grep -c '"ok":false' <<<"$BAD" >/dev/null || fail "uma chave errada devia falhar: $BAD"
+c "$MEDIASTACK/api/adopt" | json "assert d['external'] is False, d" || fail "uma ligação falhada não devia ter sido guardada"
+c -X POST -d "{\"services\":$SVC}" "$MEDIASTACK/api/adopt/connect" | json "assert all(x['ok'] for x in d['results']), d" || fail "ligar falhou"
+c "$MEDIASTACK/api/adopt" | json "assert d['external'] is True and 'sonarr' in d['connections'], d" || fail "modo importar não ficou ativo"
+c -X POST -d '{}' "$MEDIASTACK/api/reconcile" | json "assert all(s['result']=='skipped' for s in d['steps']), d" || fail "em modo importar o reconcile não devia alterar nada"
+PREVIEW=$(c "$MEDIASTACK/api/adopt/preview")
+json "assert d['desired']['quality']['profile']=='1080p' and d['desired']['naming']['scheme']=='jellyfin' and d['desired']['downloads']['categories']['tv']=='series', d" <<<"$PREVIEW" || fail "estado derivado inesperado: $PREVIEW"
+c -X POST -d '{}' "$MEDIASTACK/api/adopt/accept" >/dev/null
+c "$MEDIASTACK/api/plan" | json "assert d['changes']==[] and d['errors']==[], d" || fail "depois de importar o plano devia estar vazio: $(c "$MEDIASTACK/api/plan")"
+c -X DELETE "$MEDIASTACK/api/adopt" | grep -c '"ok":true' >/dev/null || fail "desligar falhou"
+c "$MEDIASTACK/api/adopt" | json "assert d['external'] is False, d" || fail "o modo importar não foi desligado"
 
 echo "OK: ligações, login, plan/apply idempotente, drift e verificação de hardlinks"

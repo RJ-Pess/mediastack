@@ -1,5 +1,6 @@
 import type { Config } from '../config.js';
-import { readSecrets } from '../init/secrets.js';
+import { safeReadSecrets } from '../connections.js';
+import type { Effective } from '../plan/ctx.js';
 import { wireServices, type StepResult } from './wiring.js';
 
 export interface ReconcileState {
@@ -13,6 +14,12 @@ export function createReconciler(
   config: Config,
   fetchImpl?: typeof fetch,
   getSeerrKey: () => string | undefined = () => undefined,
+  getEffective: () => Effective = () => ({
+    config,
+    secrets: safeReadSecrets(config.MEDIASTACK_SECRETS_DIR),
+  }),
+  /** Em modo importar o MediaStack não cria nem altera nada sozinho (só no apply). */
+  isExternal: () => boolean = () => false,
 ) {
   const state: ReconcileState = { running: false, lastRun: null, steps: [], error: null };
 
@@ -21,12 +28,13 @@ export function createReconciler(
   async function execute(): Promise<ReconcileState> {
     state.running = true;
     try {
-      state.steps = await wireServices(
-        config,
-        readSecrets(config.MEDIASTACK_SECRETS_DIR),
-        fetchImpl,
-        getSeerrKey(),
-      );
+      if (isExternal()) {
+        state.steps = [{ step: 'Modo importar: sem ligações automáticas', result: 'skipped' }];
+        state.error = null;
+        return state;
+      }
+      const eff = getEffective();
+      state.steps = await wireServices(eff.config, eff.secrets, fetchImpl, getSeerrKey());
       state.error = null;
     } catch (err) {
       state.error = err instanceof Error ? err.message : String(err);

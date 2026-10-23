@@ -1,5 +1,6 @@
 import type { Config } from '../config.js';
-import { buildCtx, type Ctx } from './ctx.js';
+import { safeReadSecrets } from '../connections.js';
+import { buildCtx, type Ctx, type Effective } from './ctx.js';
 import { Store } from './db.js';
 import { adopt, apply, plan, type PlanResult } from './engine.js';
 import { desiredSchema, type Desired } from './desired.js';
@@ -10,9 +11,14 @@ export function createPlanService(
   ctxOverride?: Ctx,
   fetchImpl?: typeof fetch,
   getSeerrKey: () => string | undefined = () => undefined,
+  getSecret: (name: string) => string | undefined = () => undefined,
+  getEffective: () => Effective = () => ({
+    config,
+    secrets: safeReadSecrets(config.MEDIASTACK_SECRETS_DIR),
+  }),
 ) {
   const store = new Store(`${config.MEDIASTACK_DATA_DIR}/mediastack.db`);
-  const ctx = () => ctxOverride ?? buildCtx(config, fetchImpl, getSeerrKey());
+  const ctx = () => ctxOverride ?? buildCtx(getEffective(), fetchImpl, getSeerrKey(), getSecret);
   let lastDrift: PlanResult | null = null;
   /** O drift só faz sentido depois do primeiro apply; antes tudo seria "diferença". */
   let applied = false;

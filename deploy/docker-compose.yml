@@ -68,8 +68,7 @@ services:
     environment:
       <<: *lsio-env
       FILE__SONARR__AUTH__APIKEY: /run/mediastack/sonarr.key
-      SONARR__AUTH__METHOD: Forms
-      SONARR__AUTH__REQUIRED: DisabledForLocalAddresses
+      SONARR__AUTH__METHOD: External
     volumes:
       - ${CONFIG_ROOT:-./config}/mediastack/secrets:/run/mediastack:ro
       - ${CONFIG_ROOT:-./config}/sonarr:/config
@@ -90,8 +89,7 @@ services:
     environment:
       <<: *lsio-env
       FILE__RADARR__AUTH__APIKEY: /run/mediastack/radarr.key
-      RADARR__AUTH__METHOD: Forms
-      RADARR__AUTH__REQUIRED: DisabledForLocalAddresses
+      RADARR__AUTH__METHOD: External
     volumes:
       - ${CONFIG_ROOT:-./config}/mediastack/secrets:/run/mediastack:ro
       - ${CONFIG_ROOT:-./config}/radarr:/config
@@ -109,8 +107,7 @@ services:
     environment:
       <<: *lsio-env
       FILE__PROWLARR__AUTH__APIKEY: /run/mediastack/prowlarr.key
-      PROWLARR__AUTH__METHOD: Forms
-      PROWLARR__AUTH__REQUIRED: DisabledForLocalAddresses
+      PROWLARR__AUTH__METHOD: External
     volumes:
       - ${CONFIG_ROOT:-./config}/mediastack/secrets:/run/mediastack:ro
       - ${CONFIG_ROOT:-./config}/prowlarr:/config

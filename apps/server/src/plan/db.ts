@@ -30,6 +30,9 @@ export class Store {
         token_hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL, expires_at INTEGER NOT NULL
       );
       CREATE TABLE IF NOT EXISTS flags (name TEXT PRIMARY KEY, value TEXT NOT NULL);
+      CREATE TABLE IF NOT EXISTS connections (
+        service TEXT PRIMARY KEY, url TEXT NOT NULL, username TEXT, secret TEXT NOT NULL
+      );
       CREATE TABLE IF NOT EXISTS secrets (name TEXT PRIMARY KEY, value TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS audit (
         id INTEGER PRIMARY KEY AUTOINCREMENT, ts TEXT NOT NULL, actor TEXT NOT NULL,
@@ -85,6 +88,31 @@ export class Store {
         'INSERT INTO secrets (name, value) VALUES (?, ?) ON CONFLICT(name) DO UPDATE SET value = excluded.value',
       )
       .run(name, ciphertext);
+  }
+
+  putConnection(service: string, url: string, username: string | null, secretCipher: string): void {
+    this.db
+      .prepare(
+        `INSERT INTO connections (service, url, username, secret) VALUES (?, ?, ?, ?)
+         ON CONFLICT(service) DO UPDATE SET url = excluded.url, username = excluded.username, secret = excluded.secret`,
+      )
+      .run(service, url, username, secretCipher);
+  }
+
+  listConnections(): { service: string; url: string; username: string | null; secret: string }[] {
+    return this.db.prepare('SELECT service, url, username, secret FROM connections').all() as never;
+  }
+
+  clearConnections(): void {
+    this.db.prepare('DELETE FROM connections').run();
+  }
+
+  listSecrets(): Record<string, string> {
+    const rows = this.db.prepare('SELECT name, value FROM secrets').all() as {
+      name: string;
+      value: string;
+    }[];
+    return Object.fromEntries(rows.map((r) => [r.name, r.value]));
   }
 
   getSecret(name: string): string | undefined {

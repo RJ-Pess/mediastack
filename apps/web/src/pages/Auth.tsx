@@ -70,7 +70,7 @@ export function Login() {
 }
 
 interface Desired {
-  quality: { profile: '1080p' | '4k' | 'both' };
+  quality: { profile: '1080p' | '4k' | 'both' | 'keep' };
   subtitles: { languages: string[] };
   storage: {
     tvRoot: string;
@@ -101,6 +101,7 @@ const QUALITIES: [Desired['quality']['profile'], string][] = [
   ['1080p', '1080p (Full HD)'],
   ['4k', '4K (Ultra HD)'],
   ['both', 'Ambos (1080p e 4K)'],
+  ['keep', 'Manter os perfis atuais'],
 ];
 
 const LANGS: [string, string][] = [

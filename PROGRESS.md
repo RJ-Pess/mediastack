@@ -2,7 +2,7 @@
 
 > A aplicação chamou-se «Cais» até 2026-10-23; foi renomeada para **MediaStack** (pacotes, imagem, containers, variáveis `MEDIASTACK_*`, pastas, UI e documentação).
 
-Última atualização: 2026-10-23 (noite). Estado geral: **alfa**; fases 1–4 feitas, 5 em curso (qualidade/TRaSH feita), 6 por fazer; critérios 1–5 e 7 verificados; CI no GitHub ainda a validar (critério 6).
+Última atualização: 2026-10-23 (noite). Estado geral: **alfa**; fases 1–6 implementadas; critérios 1–5 e 7 verificados; CI no GitHub ainda a validar (critério 6).
 
 ## Critérios de aceitação
 
@@ -58,18 +58,28 @@
 
 Dois problemas encontrados pelo e2e e corrigidos: (1) `POST /api/seerr/setup` chamava `reconciler.run()`, que devolvia logo se já houvesse um reconcile a correr, deixando o Seerr sem Radarr/Sonarr — agora um pedido durante uma execução corre outra a seguir (teste unitário); (2) o passo do Jellyfin pode esperar pelo reconcile de arranque, por isso o teste dá-lhe até 90 s. `KEEP=1 pnpm test:e2e` mantém o stack vivo para depuração.
 
-## Fase 5 — Qualidade e backups ◑
+## Fase 5 — Qualidade e backups ✅
 
-- [x] **Perfis TRaSH via Recyclarr** (`ghcr.io/recyclarr/recyclarr:8`, imagem oficial sem modificações). A escolha 1080p / 4K / ambos (wizard e Definições) vai para o estado desejado; o MediaStack escreve `request.env` + `sync.trigger` numa pasta partilhada e um pequeno script (`deploy/recyclarr/sync.sh`) cria as configs a partir dos templates oficiais (`config create -t`), preenche URL/chave e corre `recyclarr sync`, deixando `last-sync.txt`. Sem Docker socket. Campos do plan: `recyclarr.request`, `{radarr,sonarr}.qualityprofiles` (espera pelo Recyclarr) e `seerr.profile.*` (perfil por omissão no Seerr). Estado da sincronização visível nas Definições.
+- [x] **Perfis TRaSH via Recyclarr** (`ghcr.io/recyclarr/recyclarr:8`, imagem oficial sem modificações). A escolha 1080p / 4K / ambos / manter (wizard e Definições) vai para o estado desejado; o MediaStack escreve `request.env` + `sync.trigger` numa pasta partilhada e `deploy/recyclarr/sync.sh` cria as configs a partir dos templates oficiais (`config create -t`), preenche URL/chave e faz `recyclarr sync`, deixando `last-sync.txt`. Sem Docker socket. Campos do plan: `recyclarr.request`, `{radarr,sonarr}.qualityprofiles` (espera pelo Recyclarr) e `seerr.profile.*`.
+- [x] **Nomes** (presets TRaSH para Jellyfin/Plex/Emby, ou manter) pelo mesmo caminho (`media_naming`).
+- [x] **Notificações**: um destino (ntfy / Discord / Telegram) replicado no Sonarr, Radarr e Prowlarr; o segredo (webhook/token) fica cifrado no cofre e nunca no estado desejado; botão de teste. Só remove o recurso que o próprio MediaStack criou.
+- [x] **Backups**: agenda e retenção (`config/host`, intervalo 1–7 dias), listar e "fazer agora" (comando nativo `Backup`).
+- [x] **Exportar/importar** o estado desejado em YAML (sem segredos por defeito; com segredos só cifrados).
 - [x] O reconcile só **cria** os campos geridos pelo plan (categoria do download client, perfil do Seerr) e nunca os repõe depois.
-- [ ] Esquema de nomes (via `media_naming` do Recyclarr)
-- [ ] Notificações (ntfy / Telegram / Discord) replicadas para os serviços
-- [ ] Exportar/importar o estado desejado (YAML)
-- [ ] Backups agendados dos *arr (endpoints nativos) com retenção
 
-## Fase 6 — Adoção ☐
+### Armadilhas do Recyclarr 8 (descobertas com testes)
 
-- [ ] Modo "importar": apontar para serviços existentes, ler a config e convertê-la em estado desejado sem alterar nada
+- Várias instâncias para o mesmo `base_url` fazem `recyclarr sync` não sincronizar nada (sai com 0). Solução: um `recyclarr sync --config <ficheiro>` por config.
+- O estado é por servidor: uma config sem custom formats (a dos nomes) apagava os do template. Solução: `delete_old_custom_formats: false` em todas as configs.
+- Os presets de episódios do Sonarr são `default`/`original`/`p2p-scene`, não `standard`/`daily`/`anime`.
+- A imagem oficial não tem tag `latest`; usa `:8`.
+- Com `SONARR__AUTH__REQUIRED=DisabledForLocalAddresses` a API de `config/host` recusa qualquer escrita (exige _Allowed Hosts_). Com `Forms` exige utilizador/password. Por isso o Sonarr/Radarr/Prowlarr correm com `External` (API continua protegida pela chave; portas não publicadas).
+
+## Fase 6 — Adoção ✅
+
+- [x] **Modo importar**: ligações externas (URL + API key, qBittorrent com utilizador/password) guardadas cifradas; o resto do código usa uma configuração "efetiva" que as sobrepõe. Em modo importar o reconcile não corre (não cria nem altera nada).
+- [x] `deriveDesired`: lê só (storage, categorias, limites, legendas, perfis TRaSH/nomes reconhecíveis, backups) e converte em estado desejado; o que não reconhece fica em "manter". Pré-visualização com notas e "antes → depois"; só se grava ao aceitar; nada é aplicado até haver apply.
+- [x] Teste de integração: o próprio stack serve de instalação existente; depois de aceitar, o plano fica vazio.
 
 ## Open source / entrega
 

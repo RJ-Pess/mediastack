@@ -15,6 +15,8 @@
 - **Drift detection** – notices when someone changes a setting directly in a service's own UI; adopt the change or restore the desired value.
 - **Never deletes what it didn't create.**
 - **Hardlink check** – the wizard really creates a file, hardlinks it and compares inodes, so a broken mount is caught before it silently doubles your disk usage.
+- **Quality and naming from the TRaSH Guides** – pick 1080p / 4K / both and a naming scheme (Jellyfin, Plex, Emby); the official Recyclarr container applies them. No Docker socket needed.
+- **Import mode** – already running Sonarr/Radarr/…? Point MediaStack at them (URL + API key), review what it understood, accept; nothing changes in your services until you apply.
 - **Unified UI** – activity queue, calendar, library, requests (with quick approval), global search (⌘K), responsive, dark/light, PT-PT and English.
 
 MediaStack does **not** reimplement any of these services. Downloading, importing, subtitles and indexing stay in the upstream projects.
@@ -60,6 +62,7 @@ If another *arr stack is running on the same host, nothing conflicts by default:
 - Login is mandatory (argon2id, `httpOnly` + `SameSite=Strict` session cookie, lockout after repeated failures).
 - Third-party secrets are encrypted at rest with AES-256-GCM using a key derived from `MEDIASTACK_SECRET` (or a secret generated on first start).
 - Service API keys live as files in `config/mediastack/secrets/` and are mounted read-only into the services that need them – the same trust level as the `config.xml` files the services already keep.
+- Sonarr, Radarr and Prowlarr run with `External` authentication (the API still requires the generated key). Their ports are **not published**, so only MediaStack reaches them; if you publish a port to open a native UI, protect it with your own reverse proxy or enable authentication in the compose file.
 - The Docker socket is **never** mounted. The MediaStack container is non-root, `no-new-privileges`, `cap_drop: ALL`. The short-lived `mediastack-init` container runs as root with only `CHOWN`, `DAC_OVERRIDE` and `FOWNER`.
 - No telemetry. The only outbound connections are TMDB image/metadata lookups and whatever the services themselves do.
 
@@ -105,15 +108,17 @@ Repository layout: `apps/server` (Fastify API, bootstrap, reconciler), `apps/web
 ## Roadmap
 
 - [x] Bootstrap and automatic wiring
-- [x] Plan/apply, audit log, drift detection (storage, downloads, subtitles)
+- [x] Plan/apply, audit log, drift detection (storage, downloads, subtitles, quality, naming, backups, notifications)
 - [x] Wizard, dashboard, activity, calendar, library, requests, ⌘K search, PT/EN UI
-- [ ] Indexer management (list/enable/test) in the UI
-- [ ] Quality profiles via [Recyclarr](https://recyclarr.dev) / TRaSH Guides, naming schemes
-- [ ] Notifications (ntfy / Telegram / Discord) replicated to all services
-- [ ] Config export/import and scheduled backups
-- [ ] Adopt an existing installation (import mode)
+- [x] Indexer management (list / add public / enable / test / remove)
+- [x] Quality profiles and file naming via [Recyclarr](https://recyclarr.dev) / TRaSH Guides
+- [x] One notification destination (ntfy / Discord / Telegram) replicated to Sonarr, Radarr and Prowlarr
+- [x] Config export/import (YAML) and native backups (schedule, retention, "back up now")
+- [x] Import mode: connect to an existing installation, read its settings, change nothing until you apply
+- [ ] Notifications for Bazarr (Apprise) and Seerr
+- [ ] Private indexers (credentials) in the UI
 - [ ] Download schedules, seeding by time
-- [ ] Multi-arch image published to GHCR with Trivy scan in CI
+- [ ] Multi-arch image published to GHCR with Trivy scan in CI (pipeline ready, first release pending)
 
 ## Contributing
 

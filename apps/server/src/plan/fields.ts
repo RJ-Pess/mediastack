@@ -4,11 +4,12 @@ import type { ArrClient, ArrResource } from '../reconcile/arr.js';
 import { seerrDefinition } from '../reconcile/wiring.js';
 import {
   expectedProfiles,
-  readRequestedQuality,
+  readRequest,
+  type RecyclarrRequest,
+  type NamingScheme,
   readSyncStatus,
   renderRequest,
   requestSync,
-  type QualityChoice,
 } from '../quality/recyclarr.js';
 import type { Ctx } from './ctx.js';
 import type { Desired } from './desired.js';
@@ -20,7 +21,7 @@ import type { Desired } from './desired.js';
 export interface Field<T = unknown> {
   id: string;
   service: ServiceId;
-  section: 'Armazenamento' | 'Downloads' | 'Legendas' | 'Qualidade';
+  section: 'Armazenamento' | 'Downloads' | 'Legendas' | 'Qualidade' | 'Backups' | 'Notificações';
   label: string;
   /** `undefined` = campo não gerido pelo estado desejado. */
   desired(s: Desired): T | undefined;
@@ -37,10 +38,14 @@ export interface Field<T = unknown> {
 }
 
 const clone = <T>(x: T): T => structuredClone(x);
-const downloadClient = async (c: ArrClient) =>
-  (await c.get<ArrResource[]>('downloadclient')).find(
-    (r) => r.name === `${MANAGED_PREFIX} qBittorrent`,
+/** O cliente criado pelo MediaStack ou, numa instalação importada, o 1.º qBittorrent existente. */
+const downloadClient = async (c: ArrClient) => {
+  const all = await c.get<ArrResource[]>('downloadclient');
+  return (
+    all.find((r) => r.name === `${MANAGED_PREFIX} qBittorrent`) ??
+    all.find((r) => r.implementation === 'QBittorrent')
   );
+};
 
 const categoryField = (
   app: 'sonarr' | 'radarr',
@@ -106,9 +111,9 @@ const PROFILE = 'MediaStack';
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-const requestFor = (ctx: Ctx, q: QualityChoice) =>
+const requestFor = (ctx: Ctx, req: RecyclarrRequest) =>
   renderRequest(
-    q,
+    req,
     { url: ctx.config.MEDIASTACK_RADARR_URL, key: ctx.secrets['radarr.key'] },
     { url: ctx.config.MEDIASTACK_SONARR_URL, key: ctx.secrets['sonarr.key'] },
   );
@@ -126,9 +131,9 @@ const profilesField = (app: 'radarr' | 'sonarr', timeoutMs = 180_000): Field<str
   // O Recyclarr cria os perfis de forma assíncrona; espera por eles (e volta a pedir se falhou).
   write: async (ctx, want) => {
     const status = readSyncStatus(ctx.recyclarrDir);
-    const q = readRequestedQuality(ctx.recyclarrDir);
-    if (status.status !== 'pending' && (status.status !== 'ok' || !q)) {
-      if (q) requestSync(ctx.recyclarrDir, requestFor(ctx, q));
+    const req = readRequest(ctx.recyclarrDir);
+    if (status.status !== 'pending' && (status.status !== 'ok' || !req)) {
+      if (req) requestSync(ctx.recyclarrDir, requestFor(ctx, req));
     }
     const deadline = Date.now() + timeoutMs;
     while (Date.now() < deadline) {
@@ -148,7 +153,7 @@ const seerrProfileField = (app: 'radarr' | 'sonarr'): Field<string> => ({
   service: 'seerr',
   section: 'Qualidade',
   label: `Perfil por omissão no Seerr (${app === 'radarr' ? 'filmes' : 'séries'})`,
-  desired: (s) => expectedProfiles(s.quality.profile, app)[0]!,
+  desired: (s) => expectedProfiles(s.quality.profile, app)[0],
   applicable: (ctx) => ctx.seerr !== null,
   read: async (ctx) =>
     ctx.seerr!.getArrProfileName(app, `MediaStack ${app === 'radarr' ? 'Radarr' : 'Sonarr'}`),
@@ -159,21 +164,150 @@ const seerrProfileField = (app: 'radarr' | 'sonarr'): Field<string> => ({
   adopt: (s) => s,
 });
 
+const NOTIFICATION = 'MediaStack';
+const IMPLEMENTATION = { ntfy: 'Ntfy', discord: 'Discord', telegram: 'Telegram' } as const;
+
+export interface NotificationValue {
+  type: 'none' | 'ntfy' | 'discord' | 'telegram';
+  serverUrl: string;
+  topic: string;
+  chatId: string;
+}
+
+const fieldValue = (r: ArrResource, name: string) => r.fields?.find((f) => f.name === name)?.value;
+
+/** Um destino de notificações igual em todos os *arr (o segredo vem do cofre). */
+const notificationField = (app: 'sonarr' | 'radarr' | 'prowlarr'): Field<NotificationValue> => ({
+  id: `${app}.notification`,
+  service: app,
+  section: 'Notificações',
+  label: 'Destino das notificações',
+  desired: (s) => {
+    const n = s.notifications;
+    return {
+      type: n.type,
+      serverUrl: n.type === 'ntfy' ? n.ntfyServerUrl : '',
+      topic: n.type === 'ntfy' ? n.ntfyTopic : '',
+      chatId: n.type === 'telegram' ? n.telegramChatId : '',
+    };
+  },
+  read: async (ctx) => {
+    const r = (await ctx[app].get<ArrResource[]>('notification')).find(
+      (n) => n.name === NOTIFICATION,
+    );
+    const none: NotificationValue = { type: 'none', serverUrl: '', topic: '', chatId: '' };
+    if (!r) return none;
+    const type = (Object.entries(IMPLEMENTATION).find(([, v]) => v === r.implementation)?.[0] ??
+      'none') as NotificationValue['type'];
+    return {
+      type,
+      serverUrl: type === 'ntfy' ? String(fieldValue(r, 'serverUrl') ?? '') : '',
+      topic:
+        type === 'ntfy' ? String((fieldValue(r, 'topics') as string[] | undefined)?.[0] ?? '') : '',
+      chatId: type === 'telegram' ? String(fieldValue(r, 'chatId') ?? '') : '',
+    };
+  },
+  write: async (ctx, v) => {
+    const client = ctx[app];
+    const existing = (await client.get<ArrResource[]>('notification')).find(
+      (n) => n.name === NOTIFICATION,
+    );
+    const impl = v.type === 'none' ? null : IMPLEMENTATION[v.type];
+    // Mudar de tipo (ou desligar): remove só o recurso que o próprio MediaStack criou.
+    if (existing && existing.implementation !== impl) {
+      await client.request('DELETE', `notification/${existing.id}`);
+    }
+    if (!impl) return;
+    const secret = ctx.getSecret('notifications.secret');
+    if (!secret && v.type !== 'ntfy') {
+      throw new Error('falta o segredo das notificações (webhook ou token)');
+    }
+    const fields: Record<string, unknown> =
+      v.type === 'ntfy'
+        ? { serverUrl: v.serverUrl, topics: [v.topic], accessToken: secret ?? '' }
+        : v.type === 'discord'
+          ? { webHookUrl: secret }
+          : { botToken: secret, chatId: v.chatId };
+    const triggers =
+      app === 'prowlarr'
+        ? { onHealthIssue: true }
+        : {
+            onDownload: true,
+            onUpgrade: true,
+            onHealthIssue: true,
+            onManualInteractionRequired: true,
+          };
+    await client.ensure('notification', NOTIFICATION, impl, fields, triggers);
+  },
+  adopt: (s, v) => {
+    const n = clone(s);
+    n.notifications.type = v.type;
+    if (v.type === 'ntfy') {
+      n.notifications.ntfyServerUrl = v.serverUrl;
+      n.notifications.ntfyTopic = v.topic;
+    }
+    if (v.type === 'telegram') n.notifications.telegramChatId = v.chatId;
+    return n;
+  },
+});
+
+const notificationFields: AnyField[] = (['sonarr', 'radarr', 'prowlarr'] as const).map(
+  notificationField,
+);
+
+/** Agenda e retenção dos backups nativos (config/host) do Sonarr, Radarr e Prowlarr. */
+const backupField = (
+  app: 'sonarr' | 'radarr' | 'prowlarr',
+  key: 'backupInterval' | 'backupRetention',
+): Field<number> => {
+  const interval = key === 'backupInterval';
+  return {
+    id: `${app}.backup.${interval ? 'interval' : 'retention'}`,
+    service: app,
+    section: 'Backups',
+    label: interval ? 'Intervalo entre backups (dias)' : 'Retenção dos backups (dias)',
+    desired: (s) => (interval ? s.backups.intervalDays : s.backups.retentionDays),
+    read: async (ctx) => (await ctx[app].get<Record<string, number>>('config/host'))[key] ?? 0,
+    write: async (ctx, v) => {
+      const host = await ctx[app].get<Record<string, unknown>>('config/host');
+      await ctx[app].request('PUT', `config/host/${host.id}`, { ...host, [key]: v });
+    },
+    adopt: (s, v) => {
+      const n = clone(s);
+      if (interval) n.backups.intervalDays = v;
+      else n.backups.retentionDays = v;
+      return n;
+    },
+  };
+};
+
+const backupFields: AnyField[] = (['sonarr', 'radarr', 'prowlarr'] as const).flatMap((app) => [
+  backupField(app, 'backupInterval'),
+  backupField(app, 'backupRetention'),
+]);
+
 const qualityFields: AnyField[] = [
   {
     id: 'recyclarr.request',
     service: 'recyclarr',
     section: 'Qualidade',
-    label: 'Perfil de qualidade pedido ao Recyclarr',
-    desired: (s) => s.quality.profile,
-    read: async (ctx) => (readRequestedQuality(ctx.recyclarrDir) ?? '') as QualityChoice,
-    write: async (ctx, q: QualityChoice) => requestSync(ctx.recyclarrDir, requestFor(ctx, q)),
-    adopt: (s, q: QualityChoice) => {
+    label: 'Perfil de qualidade e nomes pedidos ao Recyclarr',
+    // Só quando há algo a pedir ao Recyclarr (perfis TRaSH e/ou nomes).
+    desired: (s) =>
+      s.quality.profile === 'keep' && s.naming.scheme === 'keep'
+        ? undefined
+        : { quality: s.quality.profile, naming: s.naming.scheme },
+    read: async (ctx) =>
+      readRequest(ctx.recyclarrDir) ?? ({ quality: '', naming: '' } as unknown as RecyclarrRequest),
+    write: async (ctx, req: RecyclarrRequest) =>
+      requestSync(ctx.recyclarrDir, requestFor(ctx, req)),
+    adopt: (s, req: RecyclarrRequest) => {
       const n = clone(s);
-      if (q) n.quality.profile = q;
+      if (req.quality) n.quality.profile = req.quality;
+      n.naming.scheme = req.naming as NamingScheme;
       return n;
     },
-  } satisfies Field<QualityChoice>,
+  } satisfies Field<RecyclarrRequest>,
   profilesField('radarr'),
   profilesField('sonarr'),
   seerrProfileField('radarr'),
@@ -272,6 +406,8 @@ export const staticFields: AnyField[] = [
   categoryField('radarr', 'movies', 'movieCategory'),
   ...bazarrFields,
   ...qualityFields,
+  ...backupFields,
+  ...notificationFields,
   prefField(
     'qbittorrent.limit.down',
     'Limite de descarga (KiB/s, 0 = sem limite)',
