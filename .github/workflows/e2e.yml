@@ -1,0 +1,25 @@
+name: e2e
+# Pesado (descarrega ~8 imagens e fala com o TMDB/Servarr metadata): manual e semanal.
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 5 * * 1'
+permissions:
+  contents: read
+jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: CAIS_IT_DIR="$RUNNER_TEMP/cais-it" ./scripts/e2e.sh
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: test-results
