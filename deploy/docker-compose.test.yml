@@ -3,14 +3,14 @@ services:
   jellyfin:
     image: jellyfin/jellyfin:latest
     container_name: jellyfin
-    networks: [cais]
+    networks: [mediastack]
     ports: ['18096:8096']
   mock-indexer:
     image: node:22-alpine
     container_name: mock-indexer
     command: ['node', '/srv/server.mjs']
     volumes: ['../tests/mock-indexer:/srv:ro']
-    networks: [cais]
+    networks: [mediastack]
   seerr:
     ports: ['15055:5055']
   radarr:
@@ -19,4 +19,4 @@ services:
     ports: ['19696:9696']
 
 networks:
-  cais: {}
+  mediastack: {}

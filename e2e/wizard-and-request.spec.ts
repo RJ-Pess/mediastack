@@ -1,8 +1,9 @@
 import { readFileSync } from 'node:fs';
 import { expect, test } from '@playwright/test';
 
-const WORK = process.env.CAIS_IT_DIR ?? `${process.env.HOME}/cais-it`;
-const secret = (name: string) => readFileSync(`${WORK}/cfg/cais/secrets/${name}`, 'utf8').trim();
+const WORK = process.env.MEDIASTACK_IT_DIR ?? `${process.env.HOME}/mediastack-it`;
+const secret = (name: string) =>
+  readFileSync(`${WORK}/cfg/mediastack/secrets/${name}`, 'utf8').trim();
 const RADARR = 'http://localhost:17878';
 const PROWLARR = 'http://localhost:19696';
 
@@ -63,7 +64,7 @@ test('wizard completo e pedido de um filme que aparece na fila do Radarr', async
   await expect(page.getByText('Hardlinks OK: /data/torrents → /data/media/movies')).toBeVisible();
   await page.getByRole('button', { name: 'Continuar' }).click();
 
-  await expect(page.getByRole('heading', { name: 'Idiomas das legendas' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Qualidade e legendas' })).toBeVisible();
   await page.getByRole('button', { name: 'Continuar' }).click();
 
   await expect(page.getByRole('heading', { name: 'Ligar ao Jellyfin' })).toBeVisible();

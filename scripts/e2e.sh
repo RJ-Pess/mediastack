@@ -4,20 +4,20 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-export CAIS_IT_DIR="${CAIS_IT_DIR:-$HOME/cais-it}"
-WORK="$CAIS_IT_DIR"
-COMPOSE=(docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.test.yml --env-file "$WORK/.env" -p caistest)
+export MEDIASTACK_IT_DIR="${MEDIASTACK_IT_DIR:-$HOME/mediastack-it}"
+WORK="$MEDIASTACK_IT_DIR"
+COMPOSE=(docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.test.yml --env-file "$WORK/.env" -p mediastacktest)
 cleanup() { "${COMPOSE[@]}" down -v >/dev/null 2>&1 || true; }
 
-docker build -q -t cais:dev . >/dev/null
+docker build -q -t mediastack:dev . >/dev/null
 mkdir -p "$WORK"
 cleanup
 docker run --rm -v "$WORK:/w" alpine sh -c 'rm -rf /w/cfg /w/data; mkdir /w/cfg /w/data'
 cat >"$WORK/.env" <<ENV
-CAIS_IMAGE=cais:dev
+MEDIASTACK_IMAGE=mediastack:dev
 CONFIG_ROOT=$WORK/cfg
 DATA_ROOT=$WORK/data
-CAIS_PORT=18088
+MEDIASTACK_PORT=18088
 TORRENT_PORT=16882
 ENV
 [ -n "${KEEP:-}" ] || trap cleanup EXIT
@@ -32,6 +32,6 @@ curl -sf -X POST -H "$JH" -d '{"Name":"admin","Password":"jf-password-123"}' $JF
 curl -sf -X POST -H "$JH" -d '{"EnableRemoteAccess":true,"EnableAutomaticPortMapping":false}' $JF/Startup/RemoteAccess
 curl -sf -X POST $JF/Startup/Complete
 for _ in $(seq 1 150); do curl -sf localhost:18088/healthz >/dev/null && break; sleep 2; done
-curl -sf localhost:18088/healthz >/dev/null || { echo 'o Cais não ficou disponível em 5 min' >&2; "${COMPOSE[@]}" logs --tail 40 cais cais-init >&2; exit 1; }
+curl -sf localhost:18088/healthz >/dev/null || { echo 'o MediaStack não ficou disponível em 5 min' >&2; "${COMPOSE[@]}" logs --tail 40 mediastack mediastack-init >&2; exit 1; }
 
 npx -y pnpm@10.18.3 exec playwright test -c e2e/playwright.config.ts "$@"

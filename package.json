@@ -1,5 +1,5 @@
 {
-  "name": "cais",
+  "name": "mediastack",
   "private": true,
   "license": "MIT",
   "type": "module",
@@ -9,8 +9,8 @@
     "node": ">=22"
   },
   "scripts": {
-    "dev:server": "pnpm --filter @cais/server dev",
-    "dev:web": "pnpm --filter @cais/web dev",
+    "dev:server": "pnpm --filter @mediastack/server dev",
+    "dev:web": "pnpm --filter @mediastack/web dev",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
     "lint": "eslint . && prettier --check .",

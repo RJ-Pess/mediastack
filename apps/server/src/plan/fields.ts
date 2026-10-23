@@ -1,6 +1,15 @@
 import type { ServiceId } from '../services.js';
 import { MANAGED_PREFIX } from '../reconcile/wiring.js';
 import type { ArrClient, ArrResource } from '../reconcile/arr.js';
+import { seerrDefinition } from '../reconcile/wiring.js';
+import {
+  expectedProfiles,
+  readRequestedQuality,
+  readSyncStatus,
+  renderRequest,
+  requestSync,
+  type QualityChoice,
+} from '../quality/recyclarr.js';
 import type { Ctx } from './ctx.js';
 import type { Desired } from './desired.js';
 
@@ -11,12 +20,16 @@ import type { Desired } from './desired.js';
 export interface Field<T = unknown> {
   id: string;
   service: ServiceId;
-  section: 'Armazenamento' | 'Downloads' | 'Legendas';
+  section: 'Armazenamento' | 'Downloads' | 'Legendas' | 'Qualidade';
   label: string;
   /** `undefined` = campo não gerido pelo estado desejado. */
   desired(s: Desired): T | undefined;
   read(ctx: Ctx): Promise<T>;
   write(ctx: Ctx, value: T): Promise<void>;
+  /** Escritas lentas (ex.: esperar pelo Recyclarr) não se repetem automaticamente. */
+  noRetry?: boolean;
+  /** `false` = o campo não se aplica agora (ex.: o Seerr ainda não está ligado). */
+  applicable?(ctx: Ctx): boolean;
   /** Igualdade desejado/real (por omissão, JSON). */
   equal?(desired: T, actual: T): boolean;
   /** Copia o valor real para o estado desejado ("adotar"). */
@@ -45,7 +58,8 @@ const categoryField = (
   },
   write: async (ctx, v) => {
     const dc = await downloadClient(ctx[app]);
-    if (!dc) throw new Error('download client Cais qBittorrent não existe (corre o reconcile)');
+    if (!dc)
+      throw new Error('download client MediaStack qBittorrent não existe (corre o reconcile)');
     await ctx[app].ensure('downloadclient', dc.name, 'QBittorrent', { [fieldName]: v });
   },
   adopt: (s, v) => {
@@ -66,7 +80,7 @@ const rootsField = (app: 'sonarr' | 'radarr'): Field<string[]> => ({
       : [s.storage.moviesRoot, ...s.storage.extraMoviesRoots],
   read: async (ctx) =>
     (await ctx[app].get<{ path: string }[]>('rootfolder')).map((r) => r.path).sort(),
-  // Só adiciona: nunca remove pastas que o Cais não criou.
+  // Só adiciona: nunca remove pastas que o MediaStack não criou.
   write: async (ctx, want) => {
     const have = (await ctx[app].get<{ path: string }[]>('rootfolder')).map((r) => r.path);
     for (const path of want.filter((p) => !have.includes(p))) {
@@ -88,7 +102,83 @@ const rootsField = (app: 'sonarr' | 'radarr'): Field<string[]> => ({
   },
 });
 
-const PROFILE = 'Cais';
+const PROFILE = 'MediaStack';
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+const requestFor = (ctx: Ctx, q: QualityChoice) =>
+  renderRequest(
+    q,
+    { url: ctx.config.MEDIASTACK_RADARR_URL, key: ctx.secrets['radarr.key'] },
+    { url: ctx.config.MEDIASTACK_SONARR_URL, key: ctx.secrets['sonarr.key'] },
+  );
+
+const profilesField = (app: 'radarr' | 'sonarr', timeoutMs = 180_000): Field<string[]> => ({
+  id: `${app}.qualityprofiles`,
+  service: app,
+  section: 'Qualidade',
+  label: 'Perfis de qualidade TRaSH',
+  desired: (s) => expectedProfiles(s.quality.profile, app),
+  read: async (ctx) =>
+    (await ctx[app].get<{ name: string }[]>('qualityprofile')).map((p) => p.name),
+  equal: (want, have) => want.every((n) => have.includes(n)),
+  noRetry: true,
+  // O Recyclarr cria os perfis de forma assíncrona; espera por eles (e volta a pedir se falhou).
+  write: async (ctx, want) => {
+    const status = readSyncStatus(ctx.recyclarrDir);
+    const q = readRequestedQuality(ctx.recyclarrDir);
+    if (status.status !== 'pending' && (status.status !== 'ok' || !q)) {
+      if (q) requestSync(ctx.recyclarrDir, requestFor(ctx, q));
+    }
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+      const have = (await ctx[app].get<{ name: string }[]>('qualityprofile')).map((p) => p.name);
+      if (want.every((n) => have.includes(n))) return;
+      await sleep(5_000);
+    }
+    throw new Error(
+      `o Recyclarr não criou os perfis ${want.join(', ')} (última sincronização: ${readSyncStatus(ctx.recyclarrDir).status})`,
+    );
+  },
+  adopt: (s) => s,
+});
+
+const seerrProfileField = (app: 'radarr' | 'sonarr'): Field<string> => ({
+  id: `seerr.profile.${app}`,
+  service: 'seerr',
+  section: 'Qualidade',
+  label: `Perfil por omissão no Seerr (${app === 'radarr' ? 'filmes' : 'séries'})`,
+  desired: (s) => expectedProfiles(s.quality.profile, app)[0]!,
+  applicable: (ctx) => ctx.seerr !== null,
+  read: async (ctx) =>
+    ctx.seerr!.getArrProfileName(app, `MediaStack ${app === 'radarr' ? 'Radarr' : 'Sonarr'}`),
+  write: async (ctx, name) => {
+    const def = await seerrDefinition(ctx.config, ctx.secrets, app, ctx[app], name);
+    await ctx.seerr!.ensureArr(app, def);
+  },
+  adopt: (s) => s,
+});
+
+const qualityFields: AnyField[] = [
+  {
+    id: 'recyclarr.request',
+    service: 'recyclarr',
+    section: 'Qualidade',
+    label: 'Perfil de qualidade pedido ao Recyclarr',
+    desired: (s) => s.quality.profile,
+    read: async (ctx) => (readRequestedQuality(ctx.recyclarrDir) ?? '') as QualityChoice,
+    write: async (ctx, q: QualityChoice) => requestSync(ctx.recyclarrDir, requestFor(ctx, q)),
+    adopt: (s, q: QualityChoice) => {
+      const n = clone(s);
+      if (q) n.quality.profile = q;
+      return n;
+    },
+  } satisfies Field<QualityChoice>,
+  profilesField('radarr'),
+  profilesField('sonarr'),
+  seerrProfileField('radarr'),
+  seerrProfileField('sonarr'),
+];
 
 const bazarrFields: AnyField[] = [
   {
@@ -181,6 +271,7 @@ export const staticFields: AnyField[] = [
   categoryField('sonarr', 'tv', 'tvCategory'),
   categoryField('radarr', 'movies', 'movieCategory'),
   ...bazarrFields,
+  ...qualityFields,
   prefField(
     'qbittorrent.limit.down',
     'Limite de descarga (KiB/s, 0 = sem limite)',

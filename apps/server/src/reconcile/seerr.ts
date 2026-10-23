@@ -10,7 +10,7 @@ export interface JellyfinLogin {
   email?: string;
 }
 
-interface SeerrArrDef {
+export interface SeerrArrDef {
   name: string;
   hostname: string;
   port: number;
@@ -67,7 +67,7 @@ export class SeerrClient {
       port: j.port,
       useSsl: j.useSsl,
       urlBase: j.urlBase ?? '',
-      email: j.email ?? `${j.username}@cais.local`,
+      email: j.email ?? `${j.username}@mediastack.local`,
       serverType: 2,
     });
     const cookie = res.headers.get('set-cookie')?.split(';')[0];
@@ -77,8 +77,19 @@ export class SeerrClient {
     return main.data.apiKey;
   }
 
+  /** Perfil de qualidade configurado no Sonarr/Radarr (`name`) dentro do Seerr. */
+  async getArrProfileName(kind: 'sonarr' | 'radarr', name: string): Promise<string> {
+    const list = await this.get<SeerrArrDef[]>(`settings/${kind}`);
+    return list.find((x) => x.name === name)?.activeProfileName ?? '';
+  }
+
   /** Cria ou atualiza o Sonarr/Radarr (`kind`) com este nome; idempotente. */
-  async ensureArr(kind: 'sonarr' | 'radarr', want: SeerrArrDef): Promise<EnsureResult> {
+  async ensureArr(
+    kind: 'sonarr' | 'radarr',
+    want: SeerrArrDef,
+    /** Campos geridos pelo plan (ex.: perfil): só são definidos ao criar. */
+    createOnly: string[] = [],
+  ): Promise<EnsureResult> {
     const body = {
       is4k: false,
       syncEnabled: false,
@@ -94,11 +105,16 @@ export class SeerrClient {
       await this.call('POST', `settings/${kind}`, body);
       return 'created';
     }
-    const differs = Object.entries(want).some(
+    const wanted = Object.fromEntries(
+      Object.entries(want).filter(([k]) => !createOnly.includes(k)),
+    );
+    const differs = Object.entries(wanted).some(
       ([k, v]) => JSON.stringify(existing[k]) !== JSON.stringify(v),
     );
     if (!differs) return 'unchanged';
-    await this.call('PUT', `settings/${kind}/${existing.id}`, { ...existing, ...body });
+    // O Seerr recusa `id` no corpo (é só-leitura); o id vai no caminho.
+    const { id, ...rest } = existing;
+    await this.call('PUT', `settings/${kind}/${id}`, { ...rest, ...body, ...wanted });
     return 'updated';
   }
 }

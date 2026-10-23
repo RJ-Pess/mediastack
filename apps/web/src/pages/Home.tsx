@@ -53,7 +53,7 @@ export function Home() {
       {drift.data && drift.data.changes.length > 0 && (
         <Link to="/definicoes" className="card mb-4 block" style={{ borderColor: 'var(--warn)' }}>
           <Dot state="warn" />{' '}
-          {t('{n} definições foram alteradas fora do Cais. Rever em Definições.', {
+          {t('{n} definições foram alteradas fora do MediaStack. Rever em Definições.', {
             n: drift.data.changes.length,
           })}
         </Link>

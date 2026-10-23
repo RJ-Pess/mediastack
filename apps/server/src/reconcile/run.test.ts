@@ -8,13 +8,13 @@ import { createReconciler } from './run.js';
 
 describe('createReconciler', () => {
   it('um pedido feito durante uma execução corre outra a seguir', async () => {
-    const dir = join(mkdtempSync(join(tmpdir(), 'cais-')), 's');
+    const dir = join(mkdtempSync(join(tmpdir(), 'mediastack-')), 's');
     ensureSecrets(dir);
     let executions = 0;
     let release!: () => void;
     const gate = new Promise<void>((r) => (release = r));
     const rec = createReconciler(
-      loadConfig({ CAIS_SECRETS_DIR: dir }),
+      loadConfig({ MEDIASTACK_SECRETS_DIR: dir }),
       (async () => {
         await gate; // segura a 1.ª execução dentro do fetch
         throw new Error('sem rede');

@@ -18,7 +18,7 @@ const I18n = createContext<{ lang: Lang; setLang: (l: Lang) => void; t: T }>({
 
 const initial = (): Lang => {
   try {
-    const saved = localStorage.getItem('cais-lang');
+    const saved = localStorage.getItem('mediastack-lang');
     if (saved === 'pt' || saved === 'en') return saved;
   } catch {
     /* armazenamento indisponível */
@@ -34,7 +34,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
   const setLang = (l: Lang) => {
     setLangState(l);
     try {
-      localStorage.setItem('cais-lang', l);
+      localStorage.setItem('mediastack-lang', l);
     } catch {
       /* ignorar */
     }

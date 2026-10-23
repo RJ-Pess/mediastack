@@ -14,10 +14,10 @@ if (process.argv[2] === 'hardlink-check') {
 
 if (process.argv[2] === 'init') {
   runInit({
-    secretsDir: config.CAIS_SECRETS_DIR,
-    configRoot: config.CAIS_CONFIG_ROOT,
-    torrentPort: config.CAIS_TORRENT_PORT,
-    dataRoot: config.CAIS_DATA_ROOT,
+    secretsDir: config.MEDIASTACK_SECRETS_DIR,
+    configRoot: config.MEDIASTACK_CONFIG_ROOT,
+    torrentPort: config.MEDIASTACK_TORRENT_PORT,
+    dataRoot: config.MEDIASTACK_DATA_ROOT,
     owner:
       config.PUID !== undefined && config.PGID !== undefined
         ? { uid: config.PUID, gid: config.PGID }

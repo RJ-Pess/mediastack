@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Anchor, Check, CircleAlert, Loader2 } from 'lucide-react';
+import { Layers, Check, CircleAlert, Loader2 } from 'lucide-react';
 import { useState, type FormEvent, type ReactNode } from 'react';
 import { api, post } from '../api';
 import { useT } from '../i18n';
@@ -9,8 +9,8 @@ function Frame({ title, children, step }: { title: string; children: ReactNode; 
   return (
     <main className="mx-auto grid min-h-screen max-w-lg content-center gap-4 px-4 py-10">
       <div className="flex items-center gap-2">
-        <Anchor className="size-7" style={{ color: 'var(--accent)' }} aria-hidden />
-        <span className="text-xl font-semibold">Cais</span>
+        <Layers className="size-7" style={{ color: 'var(--accent)' }} aria-hidden />
+        <span className="text-xl font-semibold">MediaStack</span>
         {step && <span className="muted ml-auto text-sm">{step}</span>}
       </div>
       <Card className="space-y-4">
@@ -70,6 +70,7 @@ export function Login() {
 }
 
 interface Desired {
+  quality: { profile: '1080p' | '4k' | 'both' };
   subtitles: { languages: string[] };
   storage: {
     tvRoot: string;
@@ -95,6 +96,12 @@ interface Plan {
   changes: { fieldId: string; service: string; label: string }[];
   errors: { fieldId: string; error: string }[];
 }
+
+const QUALITIES: [Desired['quality']['profile'], string][] = [
+  ['1080p', '1080p (Full HD)'],
+  ['4k', '4K (Ultra HD)'],
+  ['both', 'Ambos (1080p e 4K)'],
+];
 
 const LANGS: [string, string][] = [
   ['pt', 'Português (PT)'],
@@ -292,7 +299,7 @@ function SubsStep({ label, onDone }: { label: string; onDone: () => void }) {
     setDraft(d);
   };
   return (
-    <Frame title={t('Idiomas das legendas')} step={label}>
+    <Frame title={t('Qualidade e legendas')} step={label}>
       <p className="muted text-sm">
         {t(
           'Por ordem de preferência. A qualidade de vídeo (1080p / 4K) chega com os perfis TRaSH.',
@@ -300,7 +307,26 @@ function SubsStep({ label, onDone }: { label: string; onDone: () => void }) {
       </p>
       <ErrorNote error={save.error} />
       <fieldset className="space-y-2">
-        <legend className="sr-only">{t('Idiomas')}</legend>
+        <legend className="mb-1 text-sm font-medium">{t('Qualidade de vídeo')}</legend>
+        {QUALITIES.map(([code, name]) => (
+          <label key={code} className="flex min-h-10 items-center gap-3">
+            <input
+              type="radio"
+              name="quality"
+              className="size-5"
+              checked={value.quality.profile === code}
+              onChange={() => {
+                const d = structuredClone(value);
+                d.quality.profile = code;
+                setDraft(d);
+              }}
+            />
+            {t(name)}
+          </label>
+        ))}
+      </fieldset>
+      <fieldset className="space-y-2">
+        <legend className="mb-1 text-sm font-medium">{t('Idiomas das legendas')}</legend>
         {LANGS.map(([code, name]) => (
           <label key={code} className="flex min-h-10 items-center gap-3">
             <input

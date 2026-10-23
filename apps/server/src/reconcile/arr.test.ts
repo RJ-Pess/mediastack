@@ -49,19 +49,37 @@ describe('ArrClient.ensure', () => {
     const fake = fakeArr();
     const c = new ArrClient('Sonarr', 'http://x', 'k', 'v3', fake.fetchImpl);
     const want = { host: 'qbittorrent', password: 'pw' };
-    expect(await c.ensure('downloadclient', 'Cais qBittorrent', 'QBittorrent', want)).toBe(
+    expect(await c.ensure('downloadclient', 'MediaStack qBittorrent', 'QBittorrent', want)).toBe(
       'created',
     );
     fake.mask(); // o serviço devolve a password mascarada
-    expect(await c.ensure('downloadclient', 'Cais qBittorrent', 'QBittorrent', want)).toBe(
+    expect(await c.ensure('downloadclient', 'MediaStack qBittorrent', 'QBittorrent', want)).toBe(
       'unchanged',
     );
     expect(
-      await c.ensure('downloadclient', 'Cais qBittorrent', 'QBittorrent', {
+      await c.ensure('downloadclient', 'MediaStack qBittorrent', 'QBittorrent', {
         ...want,
         host: 'outro',
       }),
     ).toBe('updated');
     expect(fake.calls.filter((x) => x.startsWith('POST') || x.startsWith('PUT'))).toHaveLength(2);
+  });
+
+  it('campos createOnly (geridos pelo plan) não são repostos', async () => {
+    const fake = fakeArr();
+    const c = new ArrClient('Sonarr', 'http://x', 'k', 'v3', fake.fetchImpl);
+    await c.ensure('downloadclient', 'Cais qBittorrent', 'QBittorrent', {
+      host: 'a',
+      password: 'pw',
+    });
+    fake.mask();
+    const want = { host: 'b', password: 'pw' }; // "host" mudou entretanto (feito pelo plan)
+    expect(
+      await c.ensure('downloadclient', 'Cais qBittorrent', 'QBittorrent', want, {}, ['host']),
+    ).toBe('unchanged');
+    // sem createOnly o reconcile repunha o valor
+    expect(await c.ensure('downloadclient', 'Cais qBittorrent', 'QBittorrent', want)).toBe(
+      'updated',
+    );
   });
 });

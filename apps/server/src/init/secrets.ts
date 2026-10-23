@@ -10,7 +10,7 @@ export const SECRET_NAMES = [
   'bazarr.key',
   'seerr.key',
   'qbittorrent.password',
-  'cais.secret',
+  'mediastack.secret',
 ] as const;
 
 export type SecretName = (typeof SECRET_NAMES)[number];
@@ -18,7 +18,7 @@ export type SecretName = (typeof SECRET_NAMES)[number];
 const generate = (name: SecretName) =>
   name.endsWith('.key')
     ? randomBytes(16).toString('hex')
-    : randomBytes(name === 'cais.secret' ? 32 : 18).toString('base64url');
+    : randomBytes(name === 'mediastack.secret' ? 32 : 18).toString('base64url');
 
 /** Cria os segredos em falta. Nunca sobrescreve os existentes (idempotente). */
 export function ensureSecrets(dir: string): Record<SecretName, string> {

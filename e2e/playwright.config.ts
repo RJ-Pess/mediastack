@@ -6,7 +6,7 @@ export default defineConfig({
   workers: 1,
   reporter: [['list']],
   use: {
-    baseURL: process.env.CAIS_URL ?? 'http://localhost:18088',
+    baseURL: process.env.MEDIASTACK_URL ?? 'http://localhost:18088',
     locale: 'pt-PT',
     trace: 'retain-on-failure',
   },

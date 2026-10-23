@@ -33,7 +33,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - run: CAIS_IT_DIR="$RUNNER_TEMP/cais-it" ./scripts/integration.sh
+      - run: MEDIASTACK_IT_DIR="$RUNNER_TEMP/mediastack-it" ./scripts/integration.sh
 
   image:
     needs: test
@@ -56,17 +56,17 @@ jobs:
         with:
           context: .
           load: true
-          tags: cais:scan
+          tags: mediastack:scan
       - name: Trivy (CVEs críticos)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
-          image-ref: cais:scan
+          image-ref: mediastack:scan
           severity: CRITICAL
           exit-code: '1'
           ignore-unfixed: true
       - name: Verifica que corre como não-root
         run: |
-          test "$(docker run --rm --entrypoint id cais:scan -u)" != 0
+          test "$(docker run --rm --entrypoint id mediastack:scan -u)" != 0
       - uses: docker/login-action@v3
         if: github.event_name != 'pull_request'
         with:

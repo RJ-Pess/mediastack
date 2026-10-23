@@ -9,8 +9,8 @@ import { createVault } from './crypto.js';
 const newApp = () =>
   buildApp(
     loadConfig({
-      CAIS_DATA_DIR: mkdtempSync(join(tmpdir(), 'cais-')),
-      CAIS_WEB_DIR: '/nonexistent',
+      MEDIASTACK_DATA_DIR: mkdtempSync(join(tmpdir(), 'mediastack-')),
+      MEDIASTACK_WEB_DIR: '/nonexistent',
     }),
   );
 const json = { 'content-type': 'application/json' };

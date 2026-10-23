@@ -8,7 +8,7 @@ Include steps to reproduce and the affected version. You can expect an acknowled
 
 ## Scope and assumptions
 
-Cais is meant to run on a trusted LAN or behind a VPN. It is not hardened for direct Internet exposure; if you
+MediaStack is meant to run on a trusted LAN or behind a VPN. It is not hardened for direct Internet exposure; if you
 must expose it, put it behind a TLS-terminating reverse proxy.
 
 In scope: authentication/session handling, secret storage, the init/bootstrap flow, and the API.
@@ -20,4 +20,4 @@ Out of scope: vulnerabilities in the upstream services (Sonarr, Radarr, …) –
 
 Não abras uma issue pública para problemas de segurança: usa o formulário privado de
 [security advisory](../../security/advisories/new) do repositório, com passos para reproduzir e a versão afetada.
-O Cais destina-se a uma LAN ou VPN de confiança; para exposição à Internet usa um reverse proxy com TLS.
+O MediaStack destina-se a uma LAN ou VPN de confiança; para exposição à Internet usa um reverse proxy com TLS.

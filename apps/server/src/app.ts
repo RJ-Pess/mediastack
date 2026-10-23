@@ -24,6 +24,7 @@ import {
   setIndexerEnabled,
   testIndexer,
 } from './media/indexers.js';
+import { readRequestedQuality, readSyncStatus } from './quality/recyclarr.js';
 import { createPlanService } from './plan/service.js';
 import { checkHardlink } from './storage/hardlink.js';
 import { createReconciler } from './reconcile/run.js';
@@ -51,10 +52,13 @@ export async function buildApp(config: Config, fetchImpl?: typeof fetch) {
     }
   });
 
-  const planner = createPlanService(config, undefined, fetchImpl);
-  // Cofre: chave derivada de CAIS_SECRET (env) ou do segredo gerado pelo init.
+  const planner = createPlanService(config, undefined, fetchImpl, () => seerrKey());
+  // Cofre: chave derivada de MEDIASTACK_SECRET (env) ou do segredo gerado pelo init.
   const vault = () =>
-    createVault(process.env.CAIS_SECRET ?? readSecrets(config.CAIS_SECRETS_DIR)['cais.secret']);
+    createVault(
+      process.env.MEDIASTACK_SECRET ??
+        readSecrets(config.MEDIASTACK_SECRETS_DIR)['mediastack.secret'],
+    );
   const SEERR_KEY = 'seerr.apikey';
   const seerrKey = () => {
     const blob = planner.store.getSecret(SEERR_KEY);
@@ -62,14 +66,18 @@ export async function buildApp(config: Config, fetchImpl?: typeof fetch) {
   };
   const reconciler = createReconciler(config, fetchImpl, seerrKey);
   app.get('/api/seerr', async () => ({
-    initialized: await new SeerrClient(config.CAIS_SEERR_URL, null, fetchImpl).isInitialized(),
+    initialized: await new SeerrClient(
+      config.MEDIASTACK_SEERR_URL,
+      null,
+      fetchImpl,
+    ).isInitialized(),
     linked: seerrKey() !== undefined,
   }));
   // Completa o setup do Seerr com o admin do Jellyfin (as credenciais não são guardadas).
   app.post('/api/seerr/setup', async (req, reply) => {
     const parsed = jellyfinSchema.safeParse(req.body);
     if (!parsed.success) return reply.code(400).send({ error: parsed.error.issues[0]?.message });
-    const seerr = new SeerrClient(config.CAIS_SEERR_URL, null, fetchImpl);
+    const seerr = new SeerrClient(config.MEDIASTACK_SEERR_URL, null, fetchImpl);
     try {
       if (await seerr.isInitialized()) {
         return reply.code(409).send({ error: 'o Seerr já está inicializado' });
@@ -84,11 +92,11 @@ export async function buildApp(config: Config, fetchImpl?: typeof fetch) {
     return reconciler.run();
   });
   // --- Dados agregados para a UI ---
-  const ctx = () => buildCtx(config, fetchImpl);
+  const ctx = () => buildCtx(config, fetchImpl, seerrKey());
   const seerrOr503 = (reply: import('fastify').FastifyReply) => {
     const k = seerrKey();
     if (!k) void reply.code(503).send({ error: 'o Seerr ainda não está ligado ao Jellyfin' });
-    return k ? new SeerrClient(config.CAIS_SEERR_URL, k, fetchImpl) : null;
+    return k ? new SeerrClient(config.MEDIASTACK_SEERR_URL, k, fetchImpl) : null;
   };
   app.get('/api/activity', async () => getActivity(ctx()));
   app.post('/api/activity/:hash/:action', async (req, reply) => {
@@ -130,6 +138,11 @@ export async function buildApp(config: Config, fetchImpl?: typeof fetch) {
     await removeIndexer(ctx().prowlarr, id);
     return { ok: true };
   });
+  // Estado da sincronização TRaSH (Recyclarr).
+  app.get('/api/quality', async () => ({
+    requested: readRequestedQuality(config.MEDIASTACK_RECYCLARR_DIR),
+    sync: readSyncStatus(config.MEDIASTACK_RECYCLARR_DIR),
+  }));
   app.get('/api/calendar', async () => getCalendar(ctx()));
   app.get('/api/library', async () => getLibrary(ctx()));
   app.get('/api/system', async () => getSystem(ctx(), config));
@@ -207,7 +220,7 @@ export async function buildApp(config: Config, fetchImpl?: typeof fetch) {
   app.get('/healthz', async () => ({ ok: true }));
   app.get('/api/status', async () => ({ services: await probeAll(defs, fetchImpl) }));
 
-  const webDir = resolve(config.CAIS_WEB_DIR);
+  const webDir = resolve(config.MEDIASTACK_WEB_DIR);
   if (existsSync(webDir)) {
     await app.register(fastifyStatic, { root: webDir });
     app.setNotFoundHandler((req, reply) => {

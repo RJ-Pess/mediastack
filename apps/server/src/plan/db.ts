@@ -109,7 +109,10 @@ export class Store {
   getDesired(): Desired {
     const row = this.db.prepare('SELECT json FROM desired WHERE id = 1').get() as
       { json: string } | undefined;
-    return row ? desiredSchema.parse(JSON.parse(row.json)) : defaultDesired();
+    // Mescla com os defaults: estados guardados antes de existirem campos novos continuam válidos.
+    return row
+      ? desiredSchema.parse({ ...defaultDesired(), ...(JSON.parse(row.json) as object) })
+      : defaultDesired();
   }
 
   setDesired(d: Desired): void {

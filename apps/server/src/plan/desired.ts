@@ -6,6 +6,10 @@ const absPath = z.string().regex(/^\/[^\0]*$/, 'caminho absoluto');
 const lang = z.string().regex(/^[a-z]{2,3}$/, 'código de idioma do Bazarr (ex.: pt, en)');
 
 export const desiredSchema = z.object({
+  quality: z.object({
+    /** Perfis TRaSH aplicados pelo Recyclarr ao Sonarr e Radarr. */
+    profile: z.enum(['1080p', '4k', 'both']),
+  }),
   subtitles: z.object({
     /** Por ordem de preferência. `pt` = português de Portugal, `pb` = Brasil. */
     languages: z.array(lang).min(1),
@@ -31,6 +35,7 @@ export const desiredSchema = z.object({
 export type Desired = z.infer<typeof desiredSchema>;
 
 export const defaultDesired = (): Desired => ({
+  quality: { profile: '1080p' },
   subtitles: { languages: ['pt', 'en'] },
   storage: {
     tvRoot: '/data/media/tv',

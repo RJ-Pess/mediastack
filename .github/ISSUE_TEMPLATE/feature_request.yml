@@ -5,6 +5,6 @@ body:
   - type: textarea
     id: idea
     attributes:
-      label: What would you like to manage from Cais? / O que gostavas de gerir no Cais?
+      label: What would you like to manage from MediaStack? / O que gostavas de gerir no MediaStack?
       description: Which service setting(s) does it touch?
     validations: { required: true }

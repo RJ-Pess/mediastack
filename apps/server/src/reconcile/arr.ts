@@ -53,6 +53,8 @@ export class ArrClient {
     implementation: string,
     fields: Record<string, unknown>,
     extra: Record<string, unknown> = {},
+    /** Campos geridos pelo plan: o reconcile só os define ao criar e nunca os altera depois. */
+    createOnly: string[] = [],
   ): Promise<EnsureResult> {
     const existing = (await this.get<ArrResource[]>(collection)).find((r) => r.name === name);
     if (!existing) {
@@ -65,11 +67,14 @@ export class ArrClient {
       await this.request('POST', `${collection}?forceSave=true`, body);
       return 'created';
     }
+    const wanted = Object.fromEntries(
+      Object.entries(fields).filter(([k]) => !createOnly.includes(k)),
+    );
     const dirty =
       Object.entries(extra).some(([k, v]) => JSON.stringify(existing[k]) !== JSON.stringify(v)) ||
-      fieldsDiffer(existing.fields ?? [], fields);
+      fieldsDiffer(existing.fields ?? [], wanted);
     if (!dirty) return 'unchanged';
-    const body = { ...existing, ...extra, fields: applyFields(existing.fields ?? [], fields) };
+    const body = { ...existing, ...extra, fields: applyFields(existing.fields ?? [], wanted) };
     await this.request('PUT', `${collection}/${existing.id}?forceSave=true`, body);
     return 'updated';
   }

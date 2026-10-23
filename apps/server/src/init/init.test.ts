@@ -4,10 +4,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { qbitPasswordHash } from './qbittorrent.js';
-import { runInit } from './index.js';
+import { ownedDirs, runInit } from './index.js';
 import { ensureSecrets } from './secrets.js';
 
-const tmp = () => mkdtempSync(join(tmpdir(), 'cais-'));
+const tmp = () => mkdtempSync(join(tmpdir(), 'mediastack-'));
 
 describe('qbitPasswordHash', () => {
   it('é verificável com PBKDF2-SHA512', () => {
@@ -36,5 +36,20 @@ describe('runInit', () => {
     writeFileSync(conf, 'editado');
     runInit(opts);
     expect(readFileSync(conf, 'utf8')).toBe('editado');
+  });
+});
+
+describe('ownedDirs', () => {
+  it('inclui todas as pastas que os containers não-root escrevem', () => {
+    const dirs = ownedDirs({ secretsDir: '/run/mediastack', configRoot: '/configs' });
+    expect(dirs).toEqual(
+      expect.arrayContaining([
+        '/configs/mediastack/data', // base de dados do MediaStack
+        '/configs/mediastack/recyclarr', // pedidos/resultado do Recyclarr
+        '/run/mediastack',
+        '/configs/qbittorrent',
+        '/configs/bazarr',
+      ]),
+    );
   });
 });

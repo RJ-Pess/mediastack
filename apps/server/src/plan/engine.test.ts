@@ -1,4 +1,8 @@
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { loadConfig } from '../config.js';
 import type { Ctx } from './ctx.js';
 import { Store } from './db.js';
 import { defaultDesired } from './desired.js';
@@ -48,7 +52,9 @@ function fakeCtx() {
     get: async (path: string) =>
       path === 'rootfolder'
         ? state.roots[app]!.map((p) => ({ path: p }))
-        : [{ name: 'Cais qBittorrent', fields: [{ name: field, value: state[key] }] }],
+        : path === 'qualityprofile'
+          ? [{ name: 'HD Bluray + WEB' }, { name: 'WEB-1080p' }]
+          : [{ name: 'MediaStack qBittorrent', fields: [{ name: field, value: state[key] }] }],
     request: async (_m: string, _p: string, body: { path: string }) =>
       void state.roots[app]!.push(body.path),
     ensure: async (_c: string, _n: string, _i: string, f: Record<string, string>) => {
@@ -57,6 +63,10 @@ function fakeCtx() {
     },
   });
   const ctx = {
+    seerr: null,
+    config: loadConfig({}),
+    secrets: { 'radarr.key': 'rk', 'sonarr.key': 'sk' },
+    recyclarrDir: mkdtempSync(join(tmpdir(), 'mediastack-rcl-')),
     bazarr,
     sonarr: arr('sonarr', 'tvCategory', 'tvCategory'),
     radarr: arr('radarr', 'movieCategory', 'movieCategory'),
@@ -89,6 +99,7 @@ describe('plan/apply', () => {
       'qbittorrent.limit.down',
       'qbittorrent.seed.ratio',
       'radarr.rootfolders',
+      'recyclarr.request',
     ]);
 
     const store = new Store(':memory:');
@@ -96,14 +107,14 @@ describe('plan/apply', () => {
     expect(r.failed).toEqual([]);
     expect(state.prefs.dl_limit).toBe(5000 * 1024);
     expect(state.roots.radarr).toContain('/data/media/filmes-bons');
-    expect(state.profiles.map((p) => p.name)).toEqual(['Outro', 'Cais']); // não apaga o existente
+    expect(state.profiles.map((p) => p.name)).toEqual(['Outro', 'MediaStack']); // não apaga o existente
     expect(state.defaultProfile).toBe(2);
-    expect(store.listAudit()).toHaveLength(8);
+    expect(store.listAudit()).toHaveLength(9);
 
     // idempotência: segundo plan sem diferenças, segundo apply sem escritas
     expect((await plan(ctx, d)).changes).toEqual([]);
     await apply(ctx, d, store, 'teste');
-    expect(store.listAudit()).toHaveLength(8);
+    expect(store.listAudit()).toHaveLength(9);
   });
 
   it('deteta drift e permite adotar o valor real', async () => {

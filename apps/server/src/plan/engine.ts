@@ -29,6 +29,7 @@ export async function plan(ctx: Ctx, desired: Desired): Promise<PlanResult> {
     allFields(desired).map(async (f) => {
       const want = f.desired(desired);
       if (want === undefined) return;
+      if (f.applicable && !f.applicable(ctx)) return;
       try {
         const have = await f.read(ctx);
         if (!same(f, want, have)) {
@@ -75,7 +76,7 @@ export async function apply(
     const c = changes.get(f.id);
     if (!c || (only && !only.includes(c.fieldId))) continue;
     try {
-      await retry(() => f.write(ctx, c.after));
+      await retry(() => f.write(ctx, c.after), f.noRetry ? 1 : 3);
       store.addAudit({
         actor,
         fieldId: c.fieldId,

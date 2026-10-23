@@ -15,11 +15,11 @@ export type HardlinkResult =
  * liga-o em `to` e confirma que ambos partilham dispositivo e inode.
  */
 export async function checkHardlink(from: string, to: string): Promise<HardlinkResult> {
-  const id = `.cais-hl-${randomBytes(6).toString('hex')}`;
+  const id = `.mediastack-hl-${randomBytes(6).toString('hex')}`;
   const src = join(from, id);
   const dst = join(to, id);
   try {
-    await writeFile(src, 'cais');
+    await writeFile(src, 'mediastack');
     await link(src, dst);
     const [a, b] = await Promise.all([stat(src), stat(dst)]);
     if (a.dev !== b.dev || a.ino !== b.ino) {

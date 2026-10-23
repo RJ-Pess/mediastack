@@ -5,10 +5,10 @@ WORKDIR /repo
 COPY . .
 RUN pnpm install --frozen-lockfile \
  && pnpm -r build \
- && pnpm --filter @cais/server deploy --prod --legacy /out
+ && pnpm --filter @mediastack/server deploy --prod --legacy /out
 
 FROM node:22-alpine
-ENV NODE_ENV=production CAIS_WEB_DIR=/app/web CAIS_DATA_DIR=/config PORT=8080
+ENV NODE_ENV=production MEDIASTACK_WEB_DIR=/app/web MEDIASTACK_DATA_DIR=/config PORT=8080
 WORKDIR /app
 COPY --from=build /out/node_modules ./node_modules
 COPY --from=build /out/dist ./dist

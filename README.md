@@ -1,8 +1,8 @@
-# Cais
+# MediaStack
 
 [Português](README.pt-PT.md) · **English**
 
-**One panel for your self-hosted media stack.** Cais is a control plane for [Seerr](https://github.com/seerr-team/seerr), [Sonarr](https://sonarr.tv), [Radarr](https://radarr.video), [Bazarr](https://www.bazarr.media), [Prowlarr](https://prowlarr.com), [Byparr](https://github.com/ThePhaseless/Byparr) and [qBittorrent](https://www.qbittorrent.org). It runs the **official, unmodified images** side by side in one Docker Compose stack, wires them together automatically and lets you manage their settings in one place through their official APIs.
+**One panel for your self-hosted media stack.** MediaStack is a control plane for [Seerr](https://github.com/seerr-team/seerr), [Sonarr](https://sonarr.tv), [Radarr](https://radarr.video), [Bazarr](https://www.bazarr.media), [Prowlarr](https://prowlarr.com), [Byparr](https://github.com/ThePhaseless/Byparr) and [qBittorrent](https://www.qbittorrent.org). It runs the **official, unmodified images** side by side in one Docker Compose stack, wires them together automatically and lets you manage their settings in one place through their official APIs.
 
 > **Status: alpha.** The core (bootstrap, wiring, plan/apply, drift detection, UI) works and is covered by integration and end-to-end tests, but several planned features are not done yet — see [Roadmap](#roadmap). Expect breaking changes.
 
@@ -17,19 +17,19 @@
 - **Hardlink check** – the wizard really creates a file, hardlinks it and compares inodes, so a broken mount is caught before it silently doubles your disk usage.
 - **Unified UI** – activity queue, calendar, library, requests (with quick approval), global search (⌘K), responsive, dark/light, PT-PT and English.
 
-Cais does **not** reimplement any of these services. Downloading, importing, subtitles and indexing stay in the upstream projects.
+MediaStack does **not** reimplement any of these services. Downloading, importing, subtitles and indexing stay in the upstream projects.
 
 ## Requirements
 
 - Docker with Compose v2 (amd64 or arm64)
 - A single filesystem for downloads and libraries (needed for hardlinks / atomic moves)
-- An existing **Jellyfin** server (Cais connects Seerr to it; it is not part of the stack)
+- An existing **Jellyfin** server (MediaStack connects Seerr to it; it is not part of the stack)
 
 ## Quick start
 
 ```bash
-git clone https://github.com/<owner>/cais.git && cd cais
-docker build -t cais:local .            # or set CAIS_IMAGE to a published tag
+git clone https://github.com/<owner>/mediastack.git && cd mediastack
+docker build -t mediastack:local .            # or set MEDIASTACK_IMAGE to a published tag
 
 cd deploy
 cp .env.example .env                     # then edit it (at least DATA_ROOT and PUID/PGID)
@@ -45,22 +45,22 @@ Your data root is mounted at `/data` in every container that touches media:
 /data/media/{movies,tv}
 ```
 
-Only Cais (`CAIS_PORT`) and the torrent port (`TORRENT_PORT`) are published on the host; everything else stays on the internal Compose network. Cais is designed for a trusted LAN or VPN – **do not expose it to the Internet** without a reverse proxy providing TLS.
+Only MediaStack (`MEDIASTACK_PORT`) and the torrent port (`TORRENT_PORT`) are published on the host; everything else stays on the internal Compose network. MediaStack is designed for a trusted LAN or VPN – **do not expose it to the Internet** without a reverse proxy providing TLS.
 
 ### CasaOS
 
-`deploy/docker-compose.yml` includes an `x-casaos` block, so you can import it as a custom app. Typical values: `DATA_ROOT=/DATA/Media`, `CONFIG_ROOT=/DATA/AppData/cais`.
+`deploy/docker-compose.yml` includes an `x-casaos` block, so you can import it as a custom app. Typical values: `DATA_ROOT=/DATA/Media`, `CONFIG_ROOT=/DATA/AppData/mediastack`.
 
 ### Ports already in use?
 
-If another *arr stack is running on the same host, nothing conflicts by default: only `CAIS_PORT` and `TORRENT_PORT` are published, and both are configurable.
+If another *arr stack is running on the same host, nothing conflicts by default: only `MEDIASTACK_PORT` and `TORRENT_PORT` are published, and both are configurable.
 
 ## Security model
 
 - Login is mandatory (argon2id, `httpOnly` + `SameSite=Strict` session cookie, lockout after repeated failures).
-- Third-party secrets are encrypted at rest with AES-256-GCM using a key derived from `CAIS_SECRET` (or a secret generated on first start).
-- Service API keys live as files in `config/cais/secrets/` and are mounted read-only into the services that need them – the same trust level as the `config.xml` files the services already keep.
-- The Docker socket is **never** mounted. The Cais container is non-root, `no-new-privileges`, `cap_drop: ALL`. The short-lived `cais-init` container runs as root with only `CHOWN`, `DAC_OVERRIDE` and `FOWNER`.
+- Third-party secrets are encrypted at rest with AES-256-GCM using a key derived from `MEDIASTACK_SECRET` (or a secret generated on first start).
+- Service API keys live as files in `config/mediastack/secrets/` and are mounted read-only into the services that need them – the same trust level as the `config.xml` files the services already keep.
+- The Docker socket is **never** mounted. The MediaStack container is non-root, `no-new-privileges`, `cap_drop: ALL`. The short-lived `mediastack-init` container runs as root with only `CHOWN`, `DAC_OVERRIDE` and `FOWNER`.
 - No telemetry. The only outbound connections are TMDB image/metadata lookups and whatever the services themselves do.
 
 Report vulnerabilities as described in [SECURITY.md](SECURITY.md).
@@ -75,7 +75,7 @@ docker compose pull && docker compose up -d
 
 ## Backup and restore
 
-Back up the whole `CONFIG_ROOT` directory (services' configs, Cais database and secrets) while the stack is stopped (`docker compose stop`), and restore it by copying it back. Built-in scheduled backups are on the roadmap.
+Back up the whole `CONFIG_ROOT` directory (services' configs, MediaStack database and secrets) while the stack is stopped (`docker compose stop`), and restore it by copying it back. Built-in scheduled backups are on the roadmap.
 
 ## Troubleshooting
 
@@ -83,7 +83,7 @@ Back up the whole `CONFIG_ROOT` directory (services' configs, Cais database and 
 | ---------------------------------------- | ------------------------------------------------------------------------------------------------------- |
 | `DATA_ROOT` error on `docker compose up` | Set `DATA_ROOT` in `deploy/.env`.                                                                       |
 | Wizard warns about hardlinks             | Downloads and libraries are on different mounts/filesystems. Use one volume for `DATA_ROOT`.            |
-| A service is red on the dashboard        | `docker compose logs <service>`; Cais retries wiring on start and via **Settings → Apply**.             |
+| A service is red on the dashboard        | `docker compose logs <service>`; MediaStack retries wiring on start and via **Settings → Apply**.       |
 | Permission errors in `/data`             | `PUID`/`PGID` must own `DATA_ROOT` (`id` on the host shows yours).                                      |
 | Seerr is not connected                   | Finish the Jellyfin step of the wizard (Seerr only completes setup by authenticating against Jellyfin). |
 
@@ -121,4 +121,4 @@ Issues and pull requests are welcome – see [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## License
 
-[MIT](LICENSE). Cais is not affiliated with Sonarr, Radarr, Bazarr, Prowlarr, Seerr, Byparr, qBittorrent or Jellyfin; those names belong to their respective projects.
+[MIT](LICENSE). MediaStack is not affiliated with Sonarr, Radarr, Bazarr, Prowlarr, Seerr, Byparr, qBittorrent or Jellyfin; those names belong to their respective projects.

@@ -45,8 +45,8 @@ export const en: Record<string, string> = {
   'Sem downloads ativos.': 'No active downloads.',
   'Próximos lançamentos': 'Upcoming releases',
   'Nada agendado nas próximas semanas.': 'Nothing scheduled in the coming weeks.',
-  '{n} definições foram alteradas fora do Cais. Rever em Definições.':
-    '{n} settings were changed outside Cais. Review in Settings.',
+  '{n} definições foram alteradas fora do MediaStack. Rever em Definições.':
+    '{n} settings were changed outside MediaStack. Review in Settings.',
 
   // Biblioteca
   'Filtrar por título': 'Filter by title',
@@ -93,7 +93,7 @@ export const en: Record<string, string> = {
   Descartar: 'Discard',
   Guardar: 'Save',
   'Aplicar tudo': 'Apply all',
-  'Alterações feitas fora do Cais': 'Changes made outside Cais',
+  'Alterações feitas fora do MediaStack': 'Changes made outside MediaStack',
   esperado: 'expected',
   Adotar: 'Adopt',
   Repor: 'Restore',
@@ -159,6 +159,26 @@ export const en: Record<string, string> = {
   'A aplicar…': 'Applying…',
   Concluir: 'Finish',
 
+  // Qualidade
+  Qualidade: 'Quality',
+  'Qualidade e legendas': 'Quality and subtitles',
+  'Qualidade de vídeo': 'Video quality',
+  '1080p (Full HD)': '1080p (Full HD)',
+  '4K (Ultra HD)': '4K (Ultra HD)',
+  'Ambos (1080p e 4K)': 'Both (1080p and 4K)',
+  'Perfis TRaSH (Recyclarr)': 'TRaSH profiles (Recyclarr)',
+  sincronizado: 'synced',
+  falhou: 'failed',
+  'a sincronizar…': 'syncing…',
+  'ainda não sincronizado': 'not synced yet',
+  'Os perfis de qualidade vêm dos TRaSH Guides, aplicados pelo Recyclarr. Os idiomas das legendas ficam por ordem de preferência.':
+    'Quality profiles come from the TRaSH Guides, applied by Recyclarr. Subtitle languages are in order of preference.',
+  'field:recyclarr.request': 'Quality profile requested from Recyclarr',
+  'field:radarr.qualityprofiles': 'TRaSH quality profiles',
+  'field:sonarr.qualityprofiles': 'TRaSH quality profiles',
+  'field:seerr.profile.radarr': 'Default profile in Seerr (movies)',
+  'field:seerr.profile.sonarr': 'Default profile in Seerr (series)',
+
   // Indexadores
   Indexadores: 'Indexers',
   Testar: 'Test',
@@ -195,6 +215,6 @@ export const en: Record<string, string> = {
   'field:qbittorrent.limit.up': 'Upload limit (KiB/s, 0 = no limit)',
   'field:qbittorrent.seed.ratio': 'Maximum seeding ratio (0 = off)',
   'field:bazarr.languages.enabled': 'Enabled languages',
-  'field:bazarr.profile': 'Language profile "Cais"',
+  'field:bazarr.profile': 'Language profile "MediaStack"',
   'field:bazarr.profile.default': 'Default profile (series and movies)',
 };

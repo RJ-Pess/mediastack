@@ -11,7 +11,7 @@ body:
   - type: input
     id: version
     attributes:
-      label: Cais version / image tag
+      label: MediaStack version / image tag
     validations: { required: true }
   - type: textarea
     id: env
@@ -22,5 +22,5 @@ body:
     id: logs
     attributes:
       label: Logs
-      description: '`docker compose logs cais cais-init <service>` — **remove API keys and passwords first**.'
+      description: '`docker compose logs mediastack mediastack-init <service>` — **remove API keys and passwords first**.'
       render: shell

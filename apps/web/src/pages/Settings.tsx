@@ -7,6 +7,7 @@ import { Indexers } from './Indexers';
 import { Button, Card, Dot, ErrorNote, PageHeader, Skeleton } from '../ui';
 
 interface Desired {
+  quality: { profile: '1080p' | '4k' | 'both' };
   subtitles: { languages: string[] };
   storage: {
     tvRoot: string;
@@ -53,6 +54,12 @@ const ICON: Record<string, string> = {
 };
 const show = (v: unknown) =>
   Array.isArray(v) ? v.join(', ') || '—' : v === '' || v === null ? '—' : String(v);
+const QUALITIES: [Desired['quality']['profile'], string][] = [
+  ['1080p', '1080p (Full HD)'],
+  ['4k', '4K (Ultra HD)'],
+  ['both', 'Ambos (1080p e 4K)'],
+];
+
 const LANGS: [string, string][] = [
   ['pt', 'Português (PT)'],
   ['en', 'Inglês'],
@@ -102,13 +109,20 @@ export function Settings() {
   const desired = useQuery({ queryKey: ['desired'], queryFn: () => api<Desired>('/api/desired') });
   const plan = useQuery({ queryKey: ['plan'], queryFn: () => api<Plan>('/api/plan') });
   const drift = useQuery({ queryKey: ['drift'], queryFn: () => api<Plan>('/api/drift') });
+  const quality = useQuery({
+    queryKey: ['quality'],
+    queryFn: () => api<{ sync: { status: string; at: string | null } }>('/api/quality'),
+    refetchInterval: 10_000,
+  });
   const audit = useQuery({ queryKey: ['audit'], queryFn: () => api<Audit[]>('/api/audit') });
   const [draft, setDraft] = useState<Desired | null>(null);
   const value = draft ?? desired.data;
 
   const refresh = () =>
     Promise.all(
-      ['desired', 'plan', 'drift', 'audit'].map((k) => qc.invalidateQueries({ queryKey: [k] })),
+      ['desired', 'plan', 'drift', 'audit', 'quality'].map((k) =>
+        qc.invalidateQueries({ queryKey: [k] }),
+      ),
     );
   const save = useMutation({
     mutationFn: (d: Desired) => api<Desired>('/api/desired', { method: 'PUT', body: d }),
@@ -179,7 +193,7 @@ export function Settings() {
       {driftChanges.length > 0 && (
         <Card className="mb-6 space-y-3" style={{ borderColor: 'var(--warn)' }}>
           <h2 className="font-semibold">
-            <Dot state="warn" /> {t('Alterações feitas fora do Cais')}
+            <Dot state="warn" /> {t('Alterações feitas fora do MediaStack')}
           </h2>
           <ul className="space-y-2">
             {driftChanges.map((c) => (
@@ -325,6 +339,40 @@ export function Settings() {
               </Row>
             </div>
             <p className="muted text-xs">{t('0 = sem limite.')}</p>
+          </Section>
+          <Section title="Qualidade" affects="Sonarr, Radarr, Seerr">
+            <fieldset className="space-y-1">
+              <legend className="sr-only">{t('Qualidade de vídeo')}</legend>
+              {QUALITIES.map(([code, name]) => (
+                <label key={code} className="flex min-h-10 items-center gap-3">
+                  <input
+                    type="radio"
+                    name="quality"
+                    className="size-5"
+                    checked={value.quality.profile === code}
+                    onChange={() =>
+                      set((d) => {
+                        d.quality.profile = code;
+                      })
+                    }
+                  />
+                  {t(name)}
+                </label>
+              ))}
+            </fieldset>
+            <p className="muted text-xs" role="status">
+              {t('Perfis TRaSH (Recyclarr)')}:{' '}
+              {t(
+                {
+                  ok: 'sincronizado',
+                  error: 'falhou',
+                  pending: 'a sincronizar…',
+                  never: 'ainda não sincronizado',
+                }[quality.data?.sync.status ?? 'never'] ?? 'ainda não sincronizado',
+              )}
+              {quality.data?.sync.at &&
+                ` · ${new Date(quality.data.sync.at).toLocaleString(locale)}`}
+            </p>
           </Section>
           <Section title="Legendas" affects="Bazarr">
             <fieldset className="space-y-1">

@@ -12,7 +12,7 @@ export interface StepResult {
 
 type Secrets = Record<SecretName, string>;
 
-export const MANAGED_PREFIX = 'Cais';
+export const MANAGED_PREFIX = 'MediaStack';
 
 /** Liga os serviços entre si. Cada passo é idempotente. */
 export async function wireServices(
@@ -21,11 +21,11 @@ export async function wireServices(
   fetchImpl: typeof fetch = fetch,
   seerrKey?: string,
 ): Promise<StepResult[]> {
-  const sonarr = new ArrClient('Sonarr', c.CAIS_SONARR_URL, s['sonarr.key'], 'v3', fetchImpl);
-  const radarr = new ArrClient('Radarr', c.CAIS_RADARR_URL, s['radarr.key'], 'v3', fetchImpl);
+  const sonarr = new ArrClient('Sonarr', c.MEDIASTACK_SONARR_URL, s['sonarr.key'], 'v3', fetchImpl);
+  const radarr = new ArrClient('Radarr', c.MEDIASTACK_RADARR_URL, s['radarr.key'], 'v3', fetchImpl);
   const prowlarr = new ArrClient(
     'Prowlarr',
-    c.CAIS_PROWLARR_URL,
+    c.MEDIASTACK_PROWLARR_URL,
     s['prowlarr.key'],
     'v1',
     fetchImpl,
@@ -45,14 +45,16 @@ export async function wireServices(
         `${MANAGED_PREFIX} qBittorrent`,
         'QBittorrent',
         {
-          host: new URL(c.CAIS_QBITTORRENT_URL).hostname,
-          port: Number(new URL(c.CAIS_QBITTORRENT_URL).port || 80),
+          host: new URL(c.MEDIASTACK_QBITTORRENT_URL).hostname,
+          port: Number(new URL(c.MEDIASTACK_QBITTORRENT_URL).port || 80),
           useSsl: false,
-          username: 'cais',
+          username: 'mediastack',
           password: s['qbittorrent.password'],
           [categoryField]: category,
         },
         { enable: true },
+        // A categoria é gerida pelo plan (campo *.downloadclient.category).
+        [categoryField],
       ),
     );
     const roots = await client.get<ArrResource[]>('rootfolder');
@@ -81,13 +83,13 @@ export async function wireServices(
       'indexerProxy',
       `${MANAGED_PREFIX} Byparr`,
       'FlareSolverr',
-      { host: `${c.CAIS_BYPARR_URL.replace(/\/$/, '')}/`, requestTimeout: 60 },
+      { host: `${c.MEDIASTACK_BYPARR_URL.replace(/\/$/, '')}/`, requestTimeout: 60 },
       { tags: [tag.id] },
     ),
   );
   for (const [impl, url, key] of [
-    ['Sonarr', c.CAIS_SONARR_URL, s['sonarr.key']],
-    ['Radarr', c.CAIS_RADARR_URL, s['radarr.key']],
+    ['Sonarr', c.MEDIASTACK_SONARR_URL, s['sonarr.key']],
+    ['Radarr', c.MEDIASTACK_RADARR_URL, s['radarr.key']],
   ] as const) {
     record(
       `Prowlarr → ${impl}`,
@@ -95,14 +97,14 @@ export async function wireServices(
         'applications',
         `${MANAGED_PREFIX} ${impl}`,
         impl,
-        { prowlarrUrl: c.CAIS_PROWLARR_URL, baseUrl: url, apiKey: key },
+        { prowlarrUrl: c.MEDIASTACK_PROWLARR_URL, baseUrl: url, apiKey: key },
         { syncLevel: 'fullSync' },
       ),
     );
   }
 
   // Bazarr -> Sonarr / Radarr
-  const bazarr = new BazarrClient(c.CAIS_BAZARR_URL, s['bazarr.key'], fetchImpl);
+  const bazarr = new BazarrClient(c.MEDIASTACK_BAZARR_URL, s['bazarr.key'], fetchImpl);
   const link = (url: string, apiKey: string) => ({
     ip: new URL(url).hostname,
     port: Number(new URL(url).port || 80),
@@ -113,8 +115,8 @@ export async function wireServices(
     'Bazarr → Sonarr/Radarr',
     await bazarr.ensureSettings({
       general: { use_sonarr: true, use_radarr: true },
-      sonarr: link(c.CAIS_SONARR_URL, s['sonarr.key']),
-      radarr: link(c.CAIS_RADARR_URL, s['radarr.key']),
+      sonarr: link(c.MEDIASTACK_SONARR_URL, s['sonarr.key']),
+      radarr: link(c.MEDIASTACK_RADARR_URL, s['radarr.key']),
     }),
   );
 
@@ -122,32 +124,50 @@ export async function wireServices(
   if (!seerrKey) {
     record('Seerr → Sonarr/Radarr', 'skipped');
   } else {
-    const seerr = new SeerrClient(c.CAIS_SEERR_URL, seerrKey, fetchImpl);
-    for (const [kind, client, url, key, root] of [
-      ['sonarr', sonarr, c.CAIS_SONARR_URL, s['sonarr.key'], '/data/media/tv'],
-      ['radarr', radarr, c.CAIS_RADARR_URL, s['radarr.key'], '/data/media/movies'],
-    ] as const) {
-      // Perfil por omissão: "HD-1080p" se existir, senão o primeiro (os perfis TRaSH chegam na Fase 5).
-      const profiles = await client.get<{ id: number; name: string }[]>('qualityprofile');
-      const profile = profiles.find((p) => p.name === 'HD-1080p') ?? profiles[0];
-      if (!profile) throw new Error(`${kind}: sem perfis de qualidade`);
-      const u = new URL(url);
+    const seerr = new SeerrClient(c.MEDIASTACK_SEERR_URL, seerrKey, fetchImpl);
+    for (const kind of ['sonarr', 'radarr'] as const) {
+      const client = kind === 'sonarr' ? sonarr : radarr;
       record(
         `Seerr → ${kind === 'sonarr' ? 'Sonarr' : 'Radarr'}`,
-        await seerr.ensureArr(kind, {
-          name: `${MANAGED_PREFIX} ${kind === 'sonarr' ? 'Sonarr' : 'Radarr'}`,
-          hostname: u.hostname,
-          port: Number(u.port || 80),
-          apiKey: key,
-          useSsl: false,
-          baseUrl: '',
-          activeProfileId: profile.id,
-          activeProfileName: profile.name,
-          activeDirectory: root,
-          isDefault: true,
-        }),
+        // O perfil é gerido pelo plan (campo seerr.profile.*): o reconcile só o define ao criar.
+        await seerr.ensureArr(kind, await seerrDefinition(c, s, kind, client), [
+          'activeProfileId',
+          'activeProfileName',
+        ]),
       );
     }
   }
   return out;
+}
+
+/**
+ * Definição do Sonarr/Radarr no Seerr. Perfil: o pedido (`profileName`), senão "HD-1080p"
+ * (perfil de origem do *arr), senão o primeiro.
+ */
+export async function seerrDefinition(
+  c: Config,
+  s: Secrets,
+  kind: 'sonarr' | 'radarr',
+  client: ArrClient,
+  profileName?: string,
+) {
+  const profiles = await client.get<{ id: number; name: string }[]>('qualityprofile');
+  const profile =
+    profiles.find((p) => p.name === profileName) ??
+    profiles.find((p) => p.name === 'HD-1080p') ??
+    profiles[0];
+  if (!profile) throw new Error(`${kind}: sem perfis de qualidade`);
+  const u = new URL(kind === 'sonarr' ? c.MEDIASTACK_SONARR_URL : c.MEDIASTACK_RADARR_URL);
+  return {
+    name: `${MANAGED_PREFIX} ${kind === 'sonarr' ? 'Sonarr' : 'Radarr'}`,
+    hostname: u.hostname,
+    port: Number(u.port || 80),
+    apiKey: s[`${kind}.key`],
+    useSsl: false,
+    baseUrl: '',
+    activeProfileId: profile.id,
+    activeProfileName: profile.name,
+    activeDirectory: kind === 'sonarr' ? '/data/media/tv' : '/data/media/movies',
+    isDefault: true,
+  };
 }

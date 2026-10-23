@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import {
-  Anchor,
+  Layers,
   CalendarDays,
   Clapperboard,
   DownloadCloud,
@@ -33,7 +33,7 @@ const nav = [
 function useTheme() {
   const [dark, setDark] = useState(() => {
     try {
-      return localStorage.getItem('cais-theme') !== 'light';
+      return localStorage.getItem('mediastack-theme') !== 'light';
     } catch {
       return true;
     }
@@ -41,7 +41,7 @@ function useTheme() {
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark);
     try {
-      localStorage.setItem('cais-theme', dark ? 'dark' : 'light');
+      localStorage.setItem('mediastack-theme', dark ? 'dark' : 'light');
     } catch {
       /* armazenamento indisponível */
     }
@@ -75,8 +75,8 @@ export function Shell({ user }: { user: string }) {
         style={{ borderColor: 'var(--border)' }}
       >
         <div className="mb-6 flex items-center gap-2 px-2">
-          <Anchor className="size-6" style={{ color: 'var(--accent)' }} aria-hidden />
-          <span className="text-lg font-semibold">Cais</span>
+          <Layers className="size-6" style={{ color: 'var(--accent)' }} aria-hidden />
+          <span className="text-lg font-semibold">MediaStack</span>
         </div>
         <nav aria-label={t('Principal')} className="flex flex-1 flex-col gap-1">
           {nav.map((n) => (
@@ -128,7 +128,7 @@ export function Shell({ user }: { user: string }) {
           style={{ borderColor: 'var(--border)' }}
         >
           <span className="flex items-center gap-2 font-semibold">
-            <Anchor className="size-5" style={{ color: 'var(--accent)' }} aria-hidden /> Cais
+            <Layers className="size-5" style={{ color: 'var(--accent)' }} aria-hidden /> MediaStack
           </span>
           <span className="flex gap-1">
             <Button

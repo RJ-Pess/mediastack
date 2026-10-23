@@ -1,7 +1,7 @@
 import type { Config } from './config.js';
 
 export type ServiceId =
-  'seerr' | 'sonarr' | 'radarr' | 'bazarr' | 'prowlarr' | 'qbittorrent' | 'byparr';
+  'seerr' | 'sonarr' | 'radarr' | 'bazarr' | 'prowlarr' | 'qbittorrent' | 'byparr' | 'recyclarr';
 
 export interface ServiceDef {
   id: ServiceId;
@@ -20,13 +20,13 @@ export interface ServiceStatus {
 }
 
 export const serviceDefs = (c: Config): ServiceDef[] => [
-  { id: 'seerr', name: 'Seerr', url: c.CAIS_SEERR_URL, probePath: '/api/v1/status' },
-  { id: 'sonarr', name: 'Sonarr', url: c.CAIS_SONARR_URL, probePath: '/ping' },
-  { id: 'radarr', name: 'Radarr', url: c.CAIS_RADARR_URL, probePath: '/ping' },
-  { id: 'bazarr', name: 'Bazarr', url: c.CAIS_BAZARR_URL, probePath: '/' },
-  { id: 'prowlarr', name: 'Prowlarr', url: c.CAIS_PROWLARR_URL, probePath: '/ping' },
-  { id: 'qbittorrent', name: 'qBittorrent', url: c.CAIS_QBITTORRENT_URL, probePath: '/' },
-  { id: 'byparr', name: 'Byparr', url: c.CAIS_BYPARR_URL, probePath: '/' },
+  { id: 'seerr', name: 'Seerr', url: c.MEDIASTACK_SEERR_URL, probePath: '/api/v1/status' },
+  { id: 'sonarr', name: 'Sonarr', url: c.MEDIASTACK_SONARR_URL, probePath: '/ping' },
+  { id: 'radarr', name: 'Radarr', url: c.MEDIASTACK_RADARR_URL, probePath: '/ping' },
+  { id: 'bazarr', name: 'Bazarr', url: c.MEDIASTACK_BAZARR_URL, probePath: '/' },
+  { id: 'prowlarr', name: 'Prowlarr', url: c.MEDIASTACK_PROWLARR_URL, probePath: '/ping' },
+  { id: 'qbittorrent', name: 'qBittorrent', url: c.MEDIASTACK_QBITTORRENT_URL, probePath: '/' },
+  { id: 'byparr', name: 'Byparr', url: c.MEDIASTACK_BYPARR_URL, probePath: '/' },
 ];
 
 /** Um serviço está "up" se responder com qualquer estado < 500 (redirects e 401 contam). */

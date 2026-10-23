@@ -23,7 +23,7 @@ export function createReconciler(
     try {
       state.steps = await wireServices(
         config,
-        readSecrets(config.CAIS_SECRETS_DIR),
+        readSecrets(config.MEDIASTACK_SECRETS_DIR),
         fetchImpl,
         getSeerrKey(),
       );

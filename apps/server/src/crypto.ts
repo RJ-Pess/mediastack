@@ -1,8 +1,8 @@
 import { createCipheriv, createDecipheriv, randomBytes, scryptSync } from 'node:crypto';
 
-/** AES-256-GCM com chave derivada de CAIS_SECRET. Formato: base64(iv | tag | dados). */
+/** AES-256-GCM com chave derivada de MEDIASTACK_SECRET. Formato: base64(iv | tag | dados). */
 export function createVault(secret: string) {
-  const key = scryptSync(secret, 'cais-vault-v1', 32);
+  const key = scryptSync(secret, 'mediastack-vault-v1', 32);
   return {
     encrypt(plain: string): string {
       const iv = randomBytes(12);

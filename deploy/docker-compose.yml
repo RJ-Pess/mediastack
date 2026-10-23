@@ -1,8 +1,8 @@
-name: cais
+name: mediastack
 
 x-common: &common
   restart: unless-stopped
-  networks: [cais]
+  networks: [mediastack]
   security_opt: ['no-new-privileges:true']
 
 x-lsio-env: &lsio-env
@@ -12,39 +12,40 @@ x-lsio-env: &lsio-env
   UMASK: ${UMASK:-002}
 
 services:
-  cais-init:
-    image: ${CAIS_IMAGE:-cais:local}
-    container_name: cais-init
+  mediastack-init:
+    image: ${MEDIASTACK_IMAGE:-mediastack:local}
+    container_name: mediastack-init
     command: ['node', 'dist/index.js', 'init']
     restart: 'no'
     user: '0:0'
     cap_drop: [ALL]
     cap_add: [CHOWN, DAC_OVERRIDE, FOWNER]
     security_opt: ['no-new-privileges:true']
-    networks: [cais]
+    networks: [mediastack]
     environment:
       PUID: ${PUID:-1000}
       PGID: ${PGID:-1000}
-      CAIS_TORRENT_PORT: ${TORRENT_PORT:-6882}
-      CAIS_DATA_ROOT: /data
+      MEDIASTACK_TORRENT_PORT: ${TORRENT_PORT:-6882}
+      MEDIASTACK_DATA_ROOT: /data
     volumes:
       - ${CONFIG_ROOT:-./config}:/configs
-      - ${CONFIG_ROOT:-./config}/cais/secrets:/run/cais
+      - ${CONFIG_ROOT:-./config}/mediastack/secrets:/run/mediastack
       - ${DATA_ROOT:?defina DATA_ROOT no .env (raiz de dados partilhada)}:/data
 
-  cais:
+  mediastack:
     <<: *common
-    image: ${CAIS_IMAGE:-cais:local}
-    container_name: cais
-    ports: ['${CAIS_PORT:-8088}:8080']
+    image: ${MEDIASTACK_IMAGE:-mediastack:local}
+    container_name: mediastack
+    ports: ['${MEDIASTACK_PORT:-8088}:8080']
     user: '${PUID:-1000}:${PGID:-1000}'
     cap_drop: [ALL]
     volumes:
-      - ${CONFIG_ROOT:-./config}/cais/data:/config
+      - ${CONFIG_ROOT:-./config}/mediastack/data:/config
+      - ${CONFIG_ROOT:-./config}/mediastack/recyclarr:/recyclarr
       - ${DATA_ROOT:?defina DATA_ROOT no .env (raiz de dados partilhada)}:/data
-      - ${CONFIG_ROOT:-./config}/cais/secrets:/run/cais:ro
+      - ${CONFIG_ROOT:-./config}/mediastack/secrets:/run/mediastack:ro
     depends_on:
-      cais-init: { condition: service_completed_successfully }
+      mediastack-init: { condition: service_completed_successfully }
       sonarr: { condition: service_healthy }
       radarr: { condition: service_healthy }
       prowlarr: { condition: service_healthy }
@@ -54,7 +55,7 @@ services:
     image: ghcr.io/seerr-team/seerr:latest # TODO: fixar versão
     container_name: seerr
     depends_on:
-      cais-init: { condition: service_completed_successfully }
+      mediastack-init: { condition: service_completed_successfully }
     environment: { TZ: '${TZ:-UTC}' }
     volumes: ['${CONFIG_ROOT:-./config}/seerr:/app/config']
 
@@ -63,14 +64,14 @@ services:
     image: lscr.io/linuxserver/sonarr:latest # TODO: fixar versão
     container_name: sonarr
     depends_on:
-      cais-init: { condition: service_completed_successfully }
+      mediastack-init: { condition: service_completed_successfully }
     environment:
       <<: *lsio-env
-      FILE__SONARR__AUTH__APIKEY: /run/cais/sonarr.key
+      FILE__SONARR__AUTH__APIKEY: /run/mediastack/sonarr.key
       SONARR__AUTH__METHOD: Forms
       SONARR__AUTH__REQUIRED: DisabledForLocalAddresses
     volumes:
-      - ${CONFIG_ROOT:-./config}/cais/secrets:/run/cais:ro
+      - ${CONFIG_ROOT:-./config}/mediastack/secrets:/run/mediastack:ro
       - ${CONFIG_ROOT:-./config}/sonarr:/config
       - ${DATA_ROOT:?defina DATA_ROOT no .env (raiz de dados partilhada)}:/data
     healthcheck: &hc-ping
@@ -85,14 +86,14 @@ services:
     image: lscr.io/linuxserver/radarr:latest # TODO: fixar versão
     container_name: radarr
     depends_on:
-      cais-init: { condition: service_completed_successfully }
+      mediastack-init: { condition: service_completed_successfully }
     environment:
       <<: *lsio-env
-      FILE__RADARR__AUTH__APIKEY: /run/cais/radarr.key
+      FILE__RADARR__AUTH__APIKEY: /run/mediastack/radarr.key
       RADARR__AUTH__METHOD: Forms
       RADARR__AUTH__REQUIRED: DisabledForLocalAddresses
     volumes:
-      - ${CONFIG_ROOT:-./config}/cais/secrets:/run/cais:ro
+      - ${CONFIG_ROOT:-./config}/mediastack/secrets:/run/mediastack:ro
       - ${CONFIG_ROOT:-./config}/radarr:/config
       - ${DATA_ROOT:?defina DATA_ROOT no .env (raiz de dados partilhada)}:/data
     healthcheck:
@@ -104,14 +105,14 @@ services:
     image: lscr.io/linuxserver/prowlarr:latest # TODO: fixar versão
     container_name: prowlarr
     depends_on:
-      cais-init: { condition: service_completed_successfully }
+      mediastack-init: { condition: service_completed_successfully }
     environment:
       <<: *lsio-env
-      FILE__PROWLARR__AUTH__APIKEY: /run/cais/prowlarr.key
+      FILE__PROWLARR__AUTH__APIKEY: /run/mediastack/prowlarr.key
       PROWLARR__AUTH__METHOD: Forms
       PROWLARR__AUTH__REQUIRED: DisabledForLocalAddresses
     volumes:
-      - ${CONFIG_ROOT:-./config}/cais/secrets:/run/cais:ro
+      - ${CONFIG_ROOT:-./config}/mediastack/secrets:/run/mediastack:ro
       - ${CONFIG_ROOT:-./config}/prowlarr:/config
     healthcheck:
       <<: *hc-ping
@@ -122,7 +123,7 @@ services:
     image: lscr.io/linuxserver/bazarr:latest # TODO: fixar versão
     container_name: bazarr
     depends_on:
-      cais-init: { condition: service_completed_successfully }
+      mediastack-init: { condition: service_completed_successfully }
     environment: *lsio-env
     volumes:
       - ${CONFIG_ROOT:-./config}/bazarr:/config
@@ -133,7 +134,7 @@ services:
     image: lscr.io/linuxserver/qbittorrent:latest # TODO: fixar versão
     container_name: qbittorrent
     depends_on:
-      cais-init: { condition: service_completed_successfully }
+      mediastack-init: { condition: service_completed_successfully }
     environment:
       <<: *lsio-env
       WEBUI_PORT: '8080'
@@ -145,18 +146,32 @@ services:
       - ${CONFIG_ROOT:-./config}/qbittorrent:/config
       - ${DATA_ROOT:?defina DATA_ROOT no .env (raiz de dados partilhada)}:/data
 
+  recyclarr:
+    <<: *common
+    image: ghcr.io/recyclarr/recyclarr:8
+    container_name: recyclarr
+    user: '${PUID:-1000}:${PGID:-1000}'
+    depends_on:
+      mediastack-init: { condition: service_completed_successfully }
+    entrypoint: ['/bin/sh', '/mediastack/sync.sh']
+    environment:
+      TZ: ${TZ:-UTC}
+    volumes:
+      - ${CONFIG_ROOT:-./config}/mediastack/recyclarr:/config
+      - ./recyclarr/sync.sh:/mediastack/sync.sh:ro
+
   byparr:
     <<: *common
     image: ghcr.io/thephaseless/byparr:latest # TODO: fixar versão
     container_name: byparr
 
 networks:
-  cais: {}
+  mediastack: {}
 
 x-casaos:
   architectures: [amd64, arm64]
-  main: cais
-  title: { pt_pt: Cais, en_us: Cais }
+  main: mediastack
+  title: { pt_pt: MediaStack, en_us: MediaStack }
   tagline: { pt_pt: Painel único para o stack de media, en_us: Single panel for the media stack }
   category: Media
   port_map: '8088'

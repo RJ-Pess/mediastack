@@ -5,9 +5,14 @@ import { adopt, apply, plan, type PlanResult } from './engine.js';
 import { desiredSchema, type Desired } from './desired.js';
 
 /** Junta estado desejado, plan/apply, auditoria e deteção periódica de drift. */
-export function createPlanService(config: Config, ctxOverride?: Ctx, fetchImpl?: typeof fetch) {
-  const store = new Store(`${config.CAIS_DATA_DIR}/cais.db`);
-  const ctx = () => ctxOverride ?? buildCtx(config, fetchImpl);
+export function createPlanService(
+  config: Config,
+  ctxOverride?: Ctx,
+  fetchImpl?: typeof fetch,
+  getSeerrKey: () => string | undefined = () => undefined,
+) {
+  const store = new Store(`${config.MEDIASTACK_DATA_DIR}/mediastack.db`);
+  const ctx = () => ctxOverride ?? buildCtx(config, fetchImpl, getSeerrKey());
   let lastDrift: PlanResult | null = null;
   /** O drift só faz sentido depois do primeiro apply; antes tudo seria "diferença". */
   let applied = false;

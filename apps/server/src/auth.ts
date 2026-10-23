@@ -5,7 +5,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { Store } from './plan/db.js';
 
-const COOKIE = 'cais_session';
+const COOKIE = 'mediastack_session';
 const SESSION_MS = 30 * 24 * 3600 * 1000;
 // argon2id (algorithm: 2) com os parâmetros recomendados pela OWASP.
 const ARGON = { algorithm: 2, memoryCost: 19456, timeCost: 2, parallelism: 1 } as const;
