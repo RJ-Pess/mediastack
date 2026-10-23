@@ -9,7 +9,12 @@ PROJECT=caistest
 PORT=18088
 SEERR_PORT=15055
 COMPOSE=(docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.test.yml --env-file "$WORK/.env" -p "$PROJECT")
-fail() { echo "FALHOU: $*" >&2; exit 1; }
+fail() {
+  echo "FALHOU: $*" >&2
+  "${COMPOSE[@]}" ps >&2 || true
+  "${COMPOSE[@]}" logs --tail 40 cais cais-init >&2 || true
+  exit 1
+}
 cleanup() { "${COMPOSE[@]}" down -v >/dev/null 2>&1 || true; }
 
 docker build -q -t cais:dev . >/dev/null
@@ -28,7 +33,8 @@ trap cleanup EXIT
 "${COMPOSE[@]}" up -d >/dev/null
 JAR="$WORK/cookies.txt"
 c() { curl -s -b "$JAR" -c "$JAR" -H 'Content-Type: application/json' "$@"; }
-for _ in $(seq 1 30); do curl -sf "localhost:$PORT/healthz" >/dev/null && break; sleep 2; done
+for _ in $(seq 1 150); do curl -sf "localhost:$PORT/healthz" >/dev/null && break; sleep 2; done
+curl -sf "localhost:$PORT/healthz" >/dev/null || fail "o Cais não ficou disponível em 5 min"
 # 0. Sem sessão a API está fechada; o setup cria o admin e abre a sessão
 [ "$(curl -s -o /dev/null -w '%{http_code}' "localhost:$PORT/api/plan")" = 401 ] || fail "API acessível sem login"
 c -X POST -d '{"username":"admin","password":"password-de-teste-123"}' "localhost:$PORT/api/auth/setup" | grep -q '"user":"admin"' || fail "setup do admin falhou"

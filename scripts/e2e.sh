@@ -31,6 +31,7 @@ curl -sf $JF/Startup/User >/dev/null
 curl -sf -X POST -H "$JH" -d '{"Name":"admin","Password":"jf-password-123"}' $JF/Startup/User
 curl -sf -X POST -H "$JH" -d '{"EnableRemoteAccess":true,"EnableAutomaticPortMapping":false}' $JF/Startup/RemoteAccess
 curl -sf -X POST $JF/Startup/Complete
-for _ in $(seq 1 40); do curl -sf localhost:18088/healthz >/dev/null && break; sleep 2; done
+for _ in $(seq 1 150); do curl -sf localhost:18088/healthz >/dev/null && break; sleep 2; done
+curl -sf localhost:18088/healthz >/dev/null || { echo 'o Cais não ficou disponível em 5 min' >&2; "${COMPOSE[@]}" logs --tail 40 cais cais-init >&2; exit 1; }
 
 npx -y pnpm@10.18.3 exec playwright test -c e2e/playwright.config.ts "$@"
