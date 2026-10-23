@@ -3,11 +3,17 @@ import { resolve } from 'node:path';
 import fastifyStatic from '@fastify/static';
 import Fastify from 'fastify';
 import type { Config } from './config.js';
+import { createReconciler } from './reconcile/run.js';
 import { probeAll, serviceDefs } from './services.js';
 
 export async function buildApp(config: Config, fetchImpl?: typeof fetch) {
   const app = Fastify({ logger: true });
   const defs = serviceDefs(config);
+
+  const reconciler = createReconciler(config, fetchImpl);
+  app.get('/api/reconcile', async () => reconciler.state);
+  app.post('/api/reconcile', async () => reconciler.run());
+  app.decorate('reconciler', reconciler);
 
   app.get('/healthz', async () => ({ ok: true }));
   app.get('/api/status', async () => ({ services: await probeAll(defs, fetchImpl) }));
@@ -21,4 +27,10 @@ export async function buildApp(config: Config, fetchImpl?: typeof fetch) {
     });
   }
   return app;
+}
+
+declare module 'fastify' {
+  interface FastifyInstance {
+    reconciler: ReturnType<typeof createReconciler>;
+  }
 }

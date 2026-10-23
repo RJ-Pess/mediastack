@@ -12,6 +12,26 @@ x-lsio-env: &lsio-env
   UMASK: ${UMASK:-002}
 
 services:
+  cais-init:
+    image: ${CAIS_IMAGE:-ghcr.io/OWNER/cais:latest}
+    container_name: cais-init
+    command: ['node', 'dist/index.js', 'init']
+    restart: 'no'
+    user: '0:0'
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER]
+    security_opt: ['no-new-privileges:true']
+    networks: [cais]
+    environment:
+      PUID: ${PUID:-1002}
+      PGID: ${PGID:-1001}
+      CAIS_TORRENT_PORT: ${TORRENT_PORT:-6882}
+      CAIS_DATA_ROOT: /data
+    volumes:
+      - ${CONFIG_ROOT:-/DATA/AppData/Media/cais}:/configs
+      - ${CONFIG_ROOT:-/DATA/AppData/Media/cais}/cais/secrets:/run/cais
+      - ${DATA_ROOT:-/DATA/Disco_EXT/Entretenimento}:/data
+
   cais:
     <<: *common
     image: ${CAIS_IMAGE:-ghcr.io/OWNER/cais:latest}
@@ -20,8 +40,10 @@ services:
     user: '${PUID:-1002}:${PGID:-1001}'
     cap_drop: [ALL]
     volumes:
-      - ${CONFIG_ROOT:-/DATA/AppData/Media/cais}/cais:/config
+      - ${CONFIG_ROOT:-/DATA/AppData/Media/cais}/cais/data:/config
+      - ${CONFIG_ROOT:-/DATA/AppData/Media/cais}/cais/secrets:/run/cais:ro
     depends_on:
+      cais-init: { condition: service_completed_successfully }
       sonarr: { condition: service_healthy }
       radarr: { condition: service_healthy }
       prowlarr: { condition: service_healthy }
@@ -30,6 +52,8 @@ services:
     <<: *common
     image: ghcr.io/seerr-team/seerr:latest # TODO: fixar versão
     container_name: seerr
+    depends_on:
+      cais-init: { condition: service_completed_successfully }
     environment: { TZ: '${TZ:-Europe/Lisbon}' }
     volumes: ['${CONFIG_ROOT:-/DATA/AppData/Media/cais}/seerr:/app/config']
 
@@ -37,8 +61,15 @@ services:
     <<: *common
     image: lscr.io/linuxserver/sonarr:latest # TODO: fixar versão
     container_name: sonarr
-    environment: *lsio-env
+    depends_on:
+      cais-init: { condition: service_completed_successfully }
+    environment:
+      <<: *lsio-env
+      FILE__SONARR__AUTH__APIKEY: /run/cais/sonarr.key
+      SONARR__AUTH__METHOD: Forms
+      SONARR__AUTH__REQUIRED: DisabledForLocalAddresses
     volumes:
+      - ${CONFIG_ROOT:-/DATA/AppData/Media/cais}/cais/secrets:/run/cais:ro
       - ${CONFIG_ROOT:-/DATA/AppData/Media/cais}/sonarr:/config
       - ${DATA_ROOT:-/DATA/Disco_EXT/Entretenimento}:/data
     healthcheck: &hc-ping
@@ -52,8 +83,15 @@ services:
     <<: *common
     image: lscr.io/linuxserver/radarr:latest # TODO: fixar versão
     container_name: radarr
-    environment: *lsio-env
+    depends_on:
+      cais-init: { condition: service_completed_successfully }
+    environment:
+      <<: *lsio-env
+      FILE__RADARR__AUTH__APIKEY: /run/cais/radarr.key
+      RADARR__AUTH__METHOD: Forms
+      RADARR__AUTH__REQUIRED: DisabledForLocalAddresses
     volumes:
+      - ${CONFIG_ROOT:-/DATA/AppData/Media/cais}/cais/secrets:/run/cais:ro
       - ${CONFIG_ROOT:-/DATA/AppData/Media/cais}/radarr:/config
       - ${DATA_ROOT:-/DATA/Disco_EXT/Entretenimento}:/data
     healthcheck:
@@ -64,8 +102,16 @@ services:
     <<: *common
     image: lscr.io/linuxserver/prowlarr:latest # TODO: fixar versão
     container_name: prowlarr
-    environment: *lsio-env
-    volumes: ['${CONFIG_ROOT:-/DATA/AppData/Media/cais}/prowlarr:/config']
+    depends_on:
+      cais-init: { condition: service_completed_successfully }
+    environment:
+      <<: *lsio-env
+      FILE__PROWLARR__AUTH__APIKEY: /run/cais/prowlarr.key
+      PROWLARR__AUTH__METHOD: Forms
+      PROWLARR__AUTH__REQUIRED: DisabledForLocalAddresses
+    volumes:
+      - ${CONFIG_ROOT:-/DATA/AppData/Media/cais}/cais/secrets:/run/cais:ro
+      - ${CONFIG_ROOT:-/DATA/AppData/Media/cais}/prowlarr:/config
     healthcheck:
       <<: *hc-ping
       test: ['CMD-SHELL', 'curl -fs http://localhost:9696/ping || exit 1']
@@ -74,6 +120,8 @@ services:
     <<: *common
     image: lscr.io/linuxserver/bazarr:latest # TODO: fixar versão
     container_name: bazarr
+    depends_on:
+      cais-init: { condition: service_completed_successfully }
     environment: *lsio-env
     volumes:
       - ${CONFIG_ROOT:-/DATA/AppData/Media/cais}/bazarr:/config
@@ -83,6 +131,8 @@ services:
     <<: *common
     image: lscr.io/linuxserver/qbittorrent:latest # TODO: fixar versão
     container_name: qbittorrent
+    depends_on:
+      cais-init: { condition: service_completed_successfully }
     environment:
       <<: *lsio-env
       WEBUI_PORT: '8080'
