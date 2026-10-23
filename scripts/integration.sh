@@ -119,6 +119,15 @@ for k in sonarr radarr; do
 done
 c -X POST -d '{}' "$CAIS/api/reconcile" | grep -qE '"result":"(created|updated)"' && fail "reconcile com Seerr não é idempotente"
 
+# 7c. Indexadores: adicionar um público, desativar, confirmar no Prowlarr e remover
+DEF=$(c "$CAIS/api/indexers" | json "print(next(a['definitionName'] for a in d['available'] if a['definitionName']=='yts' or True))")
+NEW=$(c -X POST -d "{\"definitionName\":\"$DEF\"}" "$CAIS/api/indexers" | json "print(d['id'])") || fail "não adicionou o indexador $DEF"
+api http://prowlarr:9696/api/v1/indexer "$(H prowlarr)" | grep -q "\"id\": $NEW" || fail "indexador não está no Prowlarr"
+c -X POST -d '{"enable":false}' "$CAIS/api/indexers/$NEW/enabled" >/dev/null
+api "http://prowlarr:9696/api/v1/indexer/$NEW" "$(H prowlarr)" | grep -q '"enable": false' || fail "indexador não foi desativado"
+c -X DELETE "$CAIS/api/indexers/$NEW" | grep -q '"ok":true' || fail "remoção falhou"
+c "$CAIS/api/indexers" | json "assert d['installed']==[], d" || fail "indexador ficou instalado depois de removido"
+
 # 8. Hardlinks: o mount único funciona; dois mounts separados geram aviso (critério 4)
 HL() { docker run --rm --user 0 "$@" cais:dev node dist/index.js hardlink-check /data/torrents /data/media; }
 c -X POST -d "{}" "$CAIS/api/storage/hardlink-check" | json "assert all(x['ok'] for x in d), d" || fail "hardlinks falham no stack (mount único)"

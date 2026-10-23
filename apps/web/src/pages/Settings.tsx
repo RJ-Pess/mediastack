@@ -3,6 +3,7 @@ import { ArrowRight } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { api, post } from '../api';
 import { useLang, useT } from '../i18n';
+import { Indexers } from './Indexers';
 import { Button, Card, Dot, ErrorNote, PageHeader, Skeleton } from '../ui';
 
 interface Desired {
@@ -392,6 +393,7 @@ export function Settings() {
               </p>
             ))}
           </Card>
+          <Indexers />
           <Card>
             <h2 className="mb-3 font-semibold">{t('Histórico')}</h2>
             <ul className="max-h-72 space-y-1 overflow-auto text-xs">

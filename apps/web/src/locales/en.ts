@@ -159,6 +159,18 @@ export const en: Record<string, string> = {
   'A aplicar…': 'Applying…',
   Concluir: 'Finish',
 
+  // Indexadores
+  Indexadores: 'Indexers',
+  Testar: 'Test',
+  'Ligação OK': 'Connection OK',
+  'Remover o indexador "{title}"?': 'Remove the indexer "{title}"?',
+  'Ainda não há indexadores.': 'No indexers yet.',
+  'Adicionar indexador público': 'Add a public indexer',
+  'Pesquisar (mín. 2 letras)…': 'Search (min. 2 letters)…',
+  Adicionar: 'Add',
+  'Os indexadores privados precisam de credenciais: configura-os na UI do Prowlarr.':
+    'Private indexers need credentials: set them up in the Prowlarr UI.',
+
   // Mensagens de erro do servidor
   'não autenticado': 'not authenticated',
   'já configurado': 'already configured',
@@ -170,6 +182,7 @@ export const en: Record<string, string> = {
   'o Seerr ainda não está ligado ao Jellyfin': 'Seerr is not connected to Jellyfin yet',
   'o Seerr já está inicializado': 'Seerr is already initialized',
   'mediaType/tmdbId inválidos': 'invalid mediaType/tmdbId',
+  'definitionName obrigatório': 'definitionName is required',
 
   // Nomes dos campos do plano (`field:<id>`)
   'field:sonarr.rootfolders': 'Root folders',

@@ -17,6 +17,13 @@ import {
   getSystem,
   search,
 } from './media/data.js';
+import {
+  addIndexer,
+  listIndexers,
+  removeIndexer,
+  setIndexerEnabled,
+  testIndexer,
+} from './media/indexers.js';
 import { createPlanService } from './plan/service.js';
 import { checkHardlink } from './storage/hardlink.js';
 import { createReconciler } from './reconcile/run.js';
@@ -90,6 +97,37 @@ export async function buildApp(config: Config, fetchImpl?: typeof fetch) {
       return reply.code(400).send({ error: 'pedido inválido' });
     }
     await ctx().qbit.torrentAction(action as 'pause' | 'resume' | 'delete', hash);
+    return { ok: true };
+  });
+  const indexerId = (req: { params: unknown }) => Number((req.params as { id: string }).id);
+  app.get('/api/indexers', async () => listIndexers(ctx().prowlarr));
+  app.post('/api/indexers', async (req, reply) => {
+    const { definitionName } = (req.body ?? {}) as { definitionName?: string };
+    if (!definitionName) return reply.code(400).send({ error: 'definitionName obrigatório' });
+    try {
+      return await addIndexer(ctx().prowlarr, definitionName);
+    } catch (err) {
+      return reply.code(400).send({ error: failure(err) });
+    }
+  });
+  app.post('/api/indexers/:id/enabled', async (req, reply) => {
+    const id = indexerId(req);
+    const { enable } = (req.body ?? {}) as { enable?: boolean };
+    if (!Number.isInteger(id) || typeof enable !== 'boolean') {
+      return reply.code(400).send({ error: 'pedido inválido' });
+    }
+    await setIndexerEnabled(ctx().prowlarr, id, enable);
+    return { ok: true };
+  });
+  app.post('/api/indexers/:id/test', async (req, reply) => {
+    const id = indexerId(req);
+    if (!Number.isInteger(id)) return reply.code(400).send({ error: 'pedido inválido' });
+    return testIndexer(ctx().prowlarr, id);
+  });
+  app.delete('/api/indexers/:id', async (req, reply) => {
+    const id = indexerId(req);
+    if (!Number.isInteger(id)) return reply.code(400).send({ error: 'pedido inválido' });
+    await removeIndexer(ctx().prowlarr, id);
     return { ok: true };
   });
   app.get('/api/calendar', async () => getCalendar(ctx()));
