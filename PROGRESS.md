@@ -6,7 +6,8 @@
 - [x] Servidor Fastify: `/healthz`, `/api/status` (sondagem dos 7 serviços), serve a SPA
 - [x] SPA React+Vite+Tailwind com cartões de estado
 - [x] Dockerfile multi-stage não-root; compose; `.env.example`; CI (lint→testes→build→GHCR)
-- [ ] Validar `docker build` e `docker compose up` (daemon Docker parado: Colima não está a correr)
+- [x] `docker build` validado (Colima arrancado); contentor corre como `node` (não-root), `/healthz`, `/api/status` e SPA OK
+- [ ] Validar `docker compose up` com os 7 serviços
 - [ ] Fixar versões das imagens (hoje `latest`, marcado TODO) e configurar Renovate
 - [ ] Confirmar nome/tag da imagem do Byparr e do Seerr (`ghcr.io/seerr-team/seerr`)
 
