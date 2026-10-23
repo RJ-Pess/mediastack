@@ -68,11 +68,12 @@ export async function apply(
   only?: string[],
 ): Promise<ApplyResult> {
   const p = await plan(ctx, desired);
-  const fields = new Map(allFields(desired).map((f) => [f.id, f]));
+  const changes = new Map(p.changes.map((c) => [c.fieldId, c]));
   const out: ApplyResult = { applied: [], failed: [] };
-  for (const c of p.changes) {
-    if (only && !only.includes(c.fieldId)) continue;
-    const f = fields.get(c.fieldId)!;
+  // Segue a ordem de declaração dos campos (ex.: perfil de legendas antes do perfil por omissão).
+  for (const f of allFields(desired)) {
+    const c = changes.get(f.id);
+    if (!c || (only && !only.includes(c.fieldId))) continue;
     try {
       await retry(() => f.write(ctx, c.after));
       store.addAudit({

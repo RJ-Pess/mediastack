@@ -3,7 +3,13 @@ import { z } from 'zod';
 const absPath = z.string().regex(/^\/[^\0]*$/, 'caminho absoluto');
 
 /** Estado desejado único, editado na UI e aplicado a vários serviços. */
+const lang = z.string().regex(/^[a-z]{2,3}$/, 'código de idioma do Bazarr (ex.: pt, en)');
+
 export const desiredSchema = z.object({
+  subtitles: z.object({
+    /** Por ordem de preferência. `pt` = português de Portugal, `pb` = Brasil. */
+    languages: z.array(lang).min(1),
+  }),
   storage: z.object({
     tvRoot: absPath,
     moviesRoot: absPath,
@@ -25,6 +31,7 @@ export const desiredSchema = z.object({
 export type Desired = z.infer<typeof desiredSchema>;
 
 export const defaultDesired = (): Desired => ({
+  subtitles: { languages: ['pt', 'en'] },
   storage: {
     tvRoot: '/data/media/tv',
     moviesRoot: '/data/media/movies',

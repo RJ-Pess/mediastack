@@ -11,7 +11,7 @@ import type { Desired } from './desired.js';
 export interface Field<T = unknown> {
   id: string;
   service: ServiceId;
-  section: 'Armazenamento' | 'Downloads';
+  section: 'Armazenamento' | 'Downloads' | 'Legendas';
   label: string;
   /** `undefined` = campo não gerido pelo estado desejado. */
   desired(s: Desired): T | undefined;
@@ -88,6 +88,67 @@ const rootsField = (app: 'sonarr' | 'radarr'): Field<string[]> => ({
   },
 });
 
+const PROFILE = 'Cais';
+
+const bazarrFields: AnyField[] = [
+  {
+    id: 'bazarr.languages.enabled',
+    service: 'bazarr',
+    section: 'Legendas',
+    label: 'Idiomas ativos',
+    desired: (s) => [...s.subtitles.languages].sort(),
+    read: async (ctx) =>
+      (await ctx.bazarr.getLanguages())
+        .filter((l) => l.enabled)
+        .map((l) => l.code2)
+        .sort(),
+    write: (ctx, v: string[]) => ctx.bazarr.enableLanguages(v),
+    // Só ativa: nunca desativa idiomas que outra pessoa ligou.
+    equal: (want: string[], have: string[]) => want.every((c) => have.includes(c)),
+    adopt: (s) => s,
+  } satisfies Field<string[]>,
+  {
+    id: 'bazarr.profile',
+    service: 'bazarr',
+    section: 'Legendas',
+    label: `Perfil de idiomas "${PROFILE}"`,
+    desired: (s) => s.subtitles.languages,
+    read: async (ctx) =>
+      (await ctx.bazarr.getProfiles())
+        .find((p) => p.name === PROFILE)
+        ?.items.map((i) => i.language) ?? [],
+    write: (ctx, v: string[]) => ctx.bazarr.upsertProfile(PROFILE, v),
+    adopt: (s, v: string[]) => {
+      const n = clone(s);
+      if (v.length) n.subtitles.languages = v;
+      return n;
+    },
+  } satisfies Field<string[]>,
+  {
+    id: 'bazarr.profile.default',
+    service: 'bazarr',
+    section: 'Legendas',
+    label: 'Perfil por omissão (séries e filmes)',
+    desired: () => PROFILE,
+    read: async (ctx) => {
+      const s = (await ctx.bazarr.getSettings()).general;
+      const profiles = await ctx.bazarr.getProfiles();
+      const nameOf = (id: unknown) =>
+        profiles.find((p) => String(p.profileId) === String(id))?.name;
+      const serie = nameOf(s?.serie_default_profile);
+      return serie !== undefined && serie === nameOf(s?.movie_default_profile) ? serie : '';
+    },
+    write: async (ctx, v: string) => {
+      const p = (await ctx.bazarr.getProfiles()).find((x) => x.name === v);
+      if (!p) throw new Error(`perfil "${v}" ainda não existe no Bazarr`);
+      await ctx.bazarr.ensureSettings({
+        general: { serie_default_profile: p.profileId, movie_default_profile: p.profileId },
+      });
+    },
+    adopt: (s) => s,
+  } satisfies Field<string>,
+];
+
 const prefField = (
   id: string,
   label: string,
@@ -119,6 +180,7 @@ export const staticFields: AnyField[] = [
   rootsField('radarr'),
   categoryField('sonarr', 'tv', 'tvCategory'),
   categoryField('radarr', 'movies', 'movieCategory'),
+  ...bazarrFields,
   prefField(
     'qbittorrent.limit.down',
     'Limite de descarga (KiB/s, 0 = sem limite)',

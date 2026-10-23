@@ -22,6 +22,18 @@
 - [ ] Perfil de idiomas do Bazarr (pt-PT + en) — entra com as definições de Legendas (Fase 3).
 - [ ] Teste de integração ainda não corre no CI (descarrega ~6 imagens).
 
+## Fase 3 — Plan/Apply (em curso)
+- [x] Estado desejado (Zod) em SQLite (`node:sqlite`, sem módulos nativos) + tabela de auditoria. Endpoints: `GET/PUT /api/desired`, `GET /api/plan`, `POST /api/apply`, `GET /api/audit`, `GET /api/drift`, `POST /api/drift/adopt`.
+- [x] Modelo por "campos" (`plan/fields.ts`): cada campo sabe ler o real, escrever e adotar. Plan = desejado vs real; apply = escrever só o que difere (idempotente, 3 tentativas, auditoria por escrita); drift = plan sobre o estado já aplicado (verificação de 5 em 5 min e a pedido).
+- [x] Armazenamento: root folders Sonarr/Radarr (+ bibliotecas extra; só adiciona, nunca remove).
+- [x] Downloads: categoria nos download clients, pasta das categorias, limites de velocidade e rácio de seeding no qBittorrent.
+- [x] Legendas: idiomas ativos + perfil "Cais" + perfil por omissão no Bazarr. O Bazarr **apaga** os perfis que faltem no POST de settings, por isso reenviamos sempre os existentes; idiomas só são ativados, nunca desativados.
+- [x] Arranque: só aplica o estado por omissão se ainda não houver estado guardado (senão esconderia o drift).
+- [x] Integração (`pnpm test:integration`) cobre critérios 2 e 3: mudar categoria/limite/idiomas → valor real muda; 2.º plan vazio; alteração direta no qBittorrent → drift; adotar resolve.
+- [ ] Indexadores (listar/ativar/testar no Prowlarr) — por fazer.
+- [ ] Horários de limites de velocidade e seeding por tempo — por fazer.
+- [ ] **Autenticação do Cais (argon2id + cookie httpOnly) — por fazer; a API está aberta na porta publicada.** Prioridade no início da Fase 4 (o Node 22 não tem argon2 nativo: usar `@node-rs/argon2`).
+
 ## Decisões
 
 - Segredos: ficheiros em `cais/secrets/` (montado só-leitura nos serviços que precisam). Estão em claro, como as chaves nos config.xml dos próprios serviços; a cifra com `CAIS_SECRET` aplica-se ao estado desejado/credenciais de terceiros na Fase 3.

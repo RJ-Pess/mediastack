@@ -15,6 +15,34 @@ function fakeCtx() {
     >,
     prefs: { dl_limit: 0, up_limit: 0, max_ratio_enabled: false, max_ratio: -1 },
     cats: {} as Record<string, { name: string; savePath: string }>,
+    enabled: [] as string[],
+    profiles: [{ profileId: 1, name: 'Outro', items: [] }] as {
+      profileId: number;
+      name: string;
+      items: { language: string }[];
+    }[],
+    defaultProfile: 0,
+  };
+  const bazarr = {
+    getLanguages: async () =>
+      ['pt', 'en', 'fr'].map((c) => ({ code2: c, name: c, enabled: state.enabled.includes(c) })),
+    enableLanguages: async (codes: string[]) =>
+      void (state.enabled = [...new Set([...state.enabled, ...codes])]),
+    getProfiles: async () => state.profiles,
+    upsertProfile: async (name: string, langs: string[]) => {
+      const items = langs.map((language) => ({ language }));
+      const mine = state.profiles.find((p) => p.name === name);
+      if (mine) mine.items = items;
+      else state.profiles.push({ profileId: 2, name, items });
+    },
+    getSettings: async () => ({
+      general: {
+        serie_default_profile: state.defaultProfile,
+        movie_default_profile: state.defaultProfile,
+      },
+    }),
+    ensureSettings: async (d: { general: { serie_default_profile: number } }) =>
+      void (state.defaultProfile = d.general.serie_default_profile),
   };
   const arr = (app: 'sonarr' | 'radarr', field: string, key: 'tvCategory' | 'movieCategory') => ({
     get: async (path: string) =>
@@ -29,6 +57,7 @@ function fakeCtx() {
     },
   });
   const ctx = {
+    bazarr,
     sonarr: arr('sonarr', 'tvCategory', 'tvCategory'),
     radarr: arr('radarr', 'movieCategory', 'movieCategory'),
     qbit: {
@@ -52,6 +81,9 @@ describe('plan/apply', () => {
 
     const p1 = await plan(ctx, d);
     expect(p1.changes.map((c) => c.fieldId)).toEqual([
+      'bazarr.languages.enabled',
+      'bazarr.profile',
+      'bazarr.profile.default',
       'qbittorrent.category.movies',
       'qbittorrent.category.tv',
       'qbittorrent.limit.down',
@@ -64,12 +96,14 @@ describe('plan/apply', () => {
     expect(r.failed).toEqual([]);
     expect(state.prefs.dl_limit).toBe(5000 * 1024);
     expect(state.roots.radarr).toContain('/data/media/filmes-bons');
-    expect(store.listAudit()).toHaveLength(5);
+    expect(state.profiles.map((p) => p.name)).toEqual(['Outro', 'Cais']); // não apaga o existente
+    expect(state.defaultProfile).toBe(2);
+    expect(store.listAudit()).toHaveLength(8);
 
     // idempotência: segundo plan sem diferenças, segundo apply sem escritas
     expect((await plan(ctx, d)).changes).toEqual([]);
     await apply(ctx, d, store, 'teste');
-    expect(store.listAudit()).toHaveLength(5);
+    expect(store.listAudit()).toHaveLength(8);
   });
 
   it('deteta drift e permite adotar o valor real', async () => {

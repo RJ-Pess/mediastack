@@ -33,6 +33,7 @@ for _ in $(seq 1 40); do
 done
 grep -q '"error":null' <<<"$R" || fail "reconcile não terminou sem erros: $R"
 
+json() { python3 -c "import sys,json;d=json.load(sys.stdin);$1"; }
 api() { docker exec cais wget -qO- "${@:2}" "$1"; }
 key() { cat "$WORK/cfg/cais/secrets/$1"; }
 H() { echo "--header=X-Api-Key: $(key "$1.key")"; }
@@ -59,15 +60,19 @@ api http://bazarr:6767/api/system/settings "--header=X-API-KEY: $(key bazarr.key
 R2=$(curl -s -X POST "localhost:$PORT/api/reconcile")
 grep -qE '"result":"(created|updated)"' <<<"$R2" && fail "segundo reconcile alterou algo: $R2"
 
+# 5b. O estado por omissão foi aplicado no arranque: perfil Cais (pt, en) é o perfil por omissão
+BPROF() { api http://bazarr:6767/api/system/languages/profiles "--header=X-API-KEY: $(key bazarr.key)"; }
+BPROF | json "p=[x for x in d if x['name']=='Cais'];assert [i['language'] for i in p[0]['items']]==['pt','en'], d" || fail "perfil Cais do Bazarr em falta"
+
 # 6. Plan/apply: mudar a categoria e um limite no Cais altera o valor real nos serviços
 CAIS="localhost:$PORT"
-json() { python3 -c "import sys,json;d=json.load(sys.stdin);$1"; }
-D=$(curl -s "$CAIS/api/desired" | json "d['downloads']['categories']['tv']='series';d['downloads']['downKiBps']=2048;print(json.dumps(d))")
+D=$(curl -s "$CAIS/api/desired" | json "d['downloads']['categories']['tv']='series';d['downloads']['downKiBps']=2048;d['subtitles']['languages']=['pt','pb'];print(json.dumps(d))")
 curl -s -X PUT -H 'Content-Type: application/json' -d "$D" "$CAIS/api/desired" >/dev/null
 PLAN=$(curl -s "$CAIS/api/plan")
 echo "$PLAN" | json "assert {c['fieldId'] for c in d['changes']}>={'sonarr.downloadclient.category','qbittorrent.limit.down'}, d" || fail "plan sem as alterações esperadas: $PLAN"
 curl -s -X POST -H 'Content-Type: application/json' -d '{}' "$CAIS/api/apply" | json "assert not d['failed'], d" || fail "apply falhou"
 api http://sonarr:8989/api/v3/downloadclient "$(H sonarr)" | grep -q '"value": "series"' || fail "categoria não mudou no Sonarr"
+BPROF | json "p=[x for x in d if x['name']=='Cais'];assert [i['language'] for i in p[0]['items']]==['pt','pb'], d" || fail "idiomas não mudaram no Bazarr"
 curl -s "$CAIS/api/plan" | json "assert d['changes']==[] and d['errors']==[], d" || fail "segundo plan não está vazio"
 
 # 7. Drift: alteração direta no qBittorrent é detetada
