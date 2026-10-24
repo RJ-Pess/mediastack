@@ -31,6 +31,7 @@ export interface LibraryItem {
   hasFile: boolean;
   sizeOnDisk: number;
   status: string;
+  monitored: boolean;
 }
 
 interface ArrImage {
@@ -91,8 +92,8 @@ interface QueueRecord {
   downloadId?: string;
 }
 
-export async function getCalendar(ctx: Ctx, days = 21): Promise<CalendarItem[]> {
-  const start = new Date();
+export async function getCalendar(ctx: Ctx, days = 21, from?: Date): Promise<CalendarItem[]> {
+  const start = from ?? new Date();
   const end = new Date(start.getTime() + days * 86_400_000);
   const q = `start=${start.toISOString().slice(0, 10)}&end=${end.toISOString().slice(0, 10)}`;
   const [eps, movies] = await Promise.all([
@@ -147,6 +148,7 @@ export async function getLibrary(ctx: Ctx): Promise<LibraryItem[]> {
         year: number;
         images: ArrImage[];
         status: string;
+        monitored: boolean;
         statistics?: { sizeOnDisk: number; episodeFileCount: number };
       }[]
     >('series'),
@@ -159,6 +161,7 @@ export async function getLibrary(ctx: Ctx): Promise<LibraryItem[]> {
         status: string;
         hasFile: boolean;
         sizeOnDisk: number;
+        monitored: boolean;
       }[]
     >('movie'),
   ]);
@@ -172,6 +175,7 @@ export async function getLibrary(ctx: Ctx): Promise<LibraryItem[]> {
       hasFile: (s.statistics?.episodeFileCount ?? 0) > 0,
       sizeOnDisk: s.statistics?.sizeOnDisk ?? 0,
       status: s.status,
+      monitored: s.monitored,
     })),
     ...movies.map((m): LibraryItem => ({
       id: m.id,
@@ -182,6 +186,7 @@ export async function getLibrary(ctx: Ctx): Promise<LibraryItem[]> {
       hasFile: m.hasFile,
       sizeOnDisk: m.sizeOnDisk,
       status: m.status,
+      monitored: m.monitored,
     })),
   ].sort((a, b) => a.title.localeCompare(b.title, 'pt'));
 }

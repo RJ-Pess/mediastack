@@ -1,8 +1,18 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  Bookmark,
+  BookmarkX,
+  Check,
+  CheckCircle2,
+  CircleDashed,
+  EyeOff,
+  Search,
+  X,
+} from 'lucide-react';
 import { useMemo, useState } from 'react';
-import { api, fmtBytes } from '../api';
+import { api, fmtBytes, post } from '../api';
 import { useT } from '../i18n';
-import { Empty, ErrorNote, PageHeader, Poster, Skeleton } from '../ui';
+import { Button, Empty, ErrorNote, PageHeader, Poster, Skeleton, Ticket, cx } from '../ui';
 
 interface Item {
   id: number;
@@ -13,14 +23,19 @@ interface Item {
   hasFile: boolean;
   sizeOnDisk: number;
   status: string;
+  monitored: boolean;
 }
+const keyOf = (i: Item) => `${i.kind}:${i.id}`;
 
 export function Library() {
   const t = useT();
+  const qc = useQueryClient();
   const q = useQuery({ queryKey: ['library'], queryFn: () => api<Item[]>('/api/library') });
   const [kind, setKind] = useState<'all' | 'movie' | 'series'>('all');
+  const [state, setState] = useState<'all' | 'available' | 'missing' | 'unmonitored'>('all');
   const [text, setText] = useState('');
-  const [onlyMissing, setMissing] = useState(false);
+  const [selecting, setSelecting] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [open, setOpen] = useState<Item | null>(null);
 
   const items = useMemo(
@@ -29,47 +44,125 @@ export function Library() {
         (i) =>
           (kind === 'all' || i.kind === kind) &&
           i.title.toLowerCase().includes(text.toLowerCase()) &&
-          (!onlyMissing || !i.hasFile),
+          (state === 'all' ||
+            (state === 'available' && i.hasFile) ||
+            (state === 'missing' && !i.hasFile && i.monitored) ||
+            (state === 'unmonitored' && !i.monitored)),
       ),
-    [q.data, kind, text, onlyMissing],
+    [q.data, kind, text, state],
   );
+
+  const act = useMutation({
+    mutationFn: (action: 'search' | 'monitor' | 'unmonitor') =>
+      post('/api/library/bulk', {
+        action,
+        items: (q.data ?? [])
+          .filter((i) => selected.has(keyOf(i)))
+          .map((i) => ({ kind: i.kind, id: i.id })),
+      }),
+    onSuccess: async (_d, action) => {
+      if (action !== 'search') await qc.invalidateQueries({ queryKey: ['library'] });
+      setSelected(new Set());
+      setSelecting(false);
+    },
+  });
+
+  const toggle = (i: Item) =>
+    setSelected((s) => {
+      const n = new Set(s);
+      if (n.has(keyOf(i))) n.delete(keyOf(i));
+      else n.add(keyOf(i));
+      return n;
+    });
+  const badge = (i: Item) =>
+    !i.monitored
+      ? { icon: <EyeOff className="size-3" aria-hidden />, label: t('Não monitorizado') }
+      : i.hasFile
+        ? { icon: <CheckCircle2 className="size-3" aria-hidden />, label: t('Disponível') }
+        : { icon: <CircleDashed className="size-3" aria-hidden />, label: t('Em falta') };
 
   return (
     <>
-      <PageHeader title={t('Biblioteca')}>
-        <div className="flex flex-wrap items-center gap-2">
-          <label className="sr-only" htmlFor="lib-filter">
-            {t('Filtrar por título')}
-          </label>
-          <input
-            id="lib-filter"
-            className="input !w-48"
-            placeholder={t('Filtrar…')}
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-          />
-          <select
-            className="input !w-auto"
-            aria-label={t('Tipo')}
-            value={kind}
-            onChange={(e) => setKind(e.target.value as typeof kind)}
-          >
-            <option value="all">{t('Tudo')}</option>
-            <option value="movie">{t('Filmes')}</option>
-            <option value="series">{t('Séries')}</option>
-          </select>
-          <label className="flex items-center gap-2 text-sm">
-            <input
-              type="checkbox"
-              className="size-4"
-              checked={onlyMissing}
-              onChange={(e) => setMissing(e.target.checked)}
-            />{' '}
-            {t('Só em falta')}
-          </label>
+      <PageHeader title={t('Biblioteca')} />
+      <div className="panel mb-5 flex flex-wrap items-center gap-2 !p-3">
+        <label className="sr-only" htmlFor="lib-filter">
+          {t('Filtrar por título')}
+        </label>
+        <input
+          id="lib-filter"
+          className="input !w-56"
+          placeholder={t('Filtrar…')}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+        />
+        <select
+          className="input !w-auto"
+          aria-label={t('Tipo')}
+          value={kind}
+          onChange={(e) => setKind(e.target.value as typeof kind)}
+        >
+          <option value="all">{t('Tudo')}</option>
+          <option value="movie">{t('Filmes')}</option>
+          <option value="series">{t('Séries')}</option>
+        </select>
+        <select
+          className="input !w-auto"
+          aria-label={t('Estado')}
+          value={state}
+          onChange={(e) => setState(e.target.value as typeof state)}
+        >
+          <option value="all">{t('Todos os estados')}</option>
+          <option value="available">{t('Disponível')}</option>
+          <option value="missing">{t('Em falta')}</option>
+          <option value="unmonitored">{t('Não monitorizado')}</option>
+        </select>
+        <span className="muted text-sm">{t('{n} títulos', { n: items.length })}</span>
+        <Button
+          className="ml-auto"
+          variant={selecting ? 'primary' : 'default'}
+          aria-pressed={selecting}
+          onClick={() => {
+            setSelecting((s) => !s);
+            setSelected(new Set());
+          }}
+        >
+          <Check className="size-4" aria-hidden /> {t('Selecionar')}
+        </Button>
+      </div>
+
+      {selecting && (
+        <div
+          className="panel sticky top-20 z-10 mb-5 flex flex-wrap items-center gap-2 !p-3"
+          role="toolbar"
+          aria-label={t('Ações em lote')}
+        >
+          <span className="text-sm font-semibold">
+            {t('{n} selecionados', { n: selected.size })}
+          </span>
+          <Button variant="ghost" onClick={() => setSelected(new Set(items.map(keyOf)))}>
+            {t('Selecionar todos')}
+          </Button>
+          <div className="ml-auto flex flex-wrap gap-2">
+            <Button disabled={!selected.size || act.isPending} onClick={() => act.mutate('search')}>
+              <Search className="size-4" aria-hidden /> {t('Procurar agora')}
+            </Button>
+            <Button
+              disabled={!selected.size || act.isPending}
+              onClick={() => act.mutate('monitor')}
+            >
+              <Bookmark className="size-4" aria-hidden /> {t('Monitorizar')}
+            </Button>
+            <Button
+              disabled={!selected.size || act.isPending}
+              onClick={() => act.mutate('unmonitor')}
+            >
+              <BookmarkX className="size-4" aria-hidden /> {t('Deixar de monitorizar')}
+            </Button>
+          </div>
         </div>
-      </PageHeader>
-      <ErrorNote error={q.error} />
+      )}
+
+      <ErrorNote error={q.error ?? act.error} />
       {q.isLoading ? (
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-6">
           {Array.from({ length: 12 }, (_, i) => (
@@ -77,25 +170,25 @@ export function Library() {
           ))}
         </div>
       ) : items.length ? (
-        <ul className="grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-6">
-          {items.map((i) => (
-            <li key={`${i.kind}${i.id}`}>
-              <button className="poster-card block w-full text-left" onClick={() => setOpen(i)}>
-                <div className="relative">
-                  <Poster src={i.poster} title={i.title} />
-                  {!i.hasFile && (
-                    <span className="absolute left-2 top-2 rounded bg-black/70 px-1.5 py-0.5 text-xs text-amber-300">
-                      {t('Em falta')}
-                    </span>
-                  )}
-                </div>
-                <p className="mt-2 truncate text-sm font-medium">{i.title}</p>
-                <p className="muted text-xs">
-                  {i.year} · {i.kind === 'movie' ? t('Filme') : t('Série')}
-                </p>
-              </button>
-            </li>
-          ))}
+        <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
+          {items.map((i) => {
+            const isSel = selected.has(keyOf(i));
+            return (
+              <li
+                key={keyOf(i)}
+                className={cx('rounded-[0.9rem]', isSel && 'outline outline-3 outline-offset-2')}
+                style={isSel ? { outlineColor: 'var(--accent)' } : undefined}
+              >
+                <Ticket
+                  title={i.title}
+                  poster={i.poster}
+                  kicker={`${i.kind === 'movie' ? t('Filme') : t('Série')} · ${i.year}`}
+                  badge={badge(i)}
+                  onClick={() => (selecting ? toggle(i) : setOpen(i))}
+                />
+              </li>
+            );
+          })}
         </ul>
       ) : (
         <Empty>{t('Nada para mostrar. Pede algo com ⌘K.')}</Empty>
@@ -110,7 +203,7 @@ export function Library() {
             role="dialog"
             aria-modal="true"
             aria-label={open.title}
-            className="card grid w-full max-w-lg grid-cols-[8rem_1fr] gap-4"
+            className="panel grid w-full max-w-lg grid-cols-[8rem_1fr] gap-4"
             onClick={(e) => e.stopPropagation()}
           >
             <Poster src={open.poster} title={open.title} />
@@ -126,9 +219,22 @@ export function Library() {
                   ? t('No disco: {size}', { size: fmtBytes(open.sizeOnDisk) })
                   : t('Ainda sem ficheiros.')}
               </p>
-              <button className="btn" onClick={() => setOpen(null)}>
-                {t('Fechar')}
-              </button>
+              <div className="flex flex-wrap gap-2 pt-2">
+                <Button
+                  onClick={async () => {
+                    await post('/api/library/bulk', {
+                      action: 'search',
+                      items: [{ kind: open.kind, id: open.id }],
+                    });
+                    setOpen(null);
+                  }}
+                >
+                  <Search className="size-4" aria-hidden /> {t('Procurar agora')}
+                </Button>
+                <Button variant="ghost" onClick={() => setOpen(null)}>
+                  <X className="size-4" aria-hidden /> {t('Fechar')}
+                </Button>
+              </div>
             </div>
           </div>
         </div>

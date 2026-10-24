@@ -343,6 +343,33 @@ export const en: Record<string, string> = {
   Nota: 'Rating',
   'filtros inválidos': 'invalid filters',
 
+  // Biblioteca, Atividade, Calendário (novos)
+  'Não monitorizado': 'Not monitored',
+  Estado: 'Status',
+  'Todos os estados': 'All statuses',
+  '{n} títulos': '{n} titles',
+  Selecionar: 'Select',
+  'Ações em lote': 'Bulk actions',
+  '{n} selecionados': '{n} selected',
+  'Selecionar todos': 'Select all',
+  'Procurar agora': 'Search now',
+  Monitorizar: 'Monitor',
+  'Deixar de monitorizar': 'Unmonitor',
+  Agora: 'Now',
+  Bloqueados: 'Blocked',
+  Apanhado: 'Grabbed',
+  Importado: 'Imported',
+  Apagado: 'Deleted',
+  Renomeado: 'Renamed',
+  Outro: 'Other',
+  'Ainda não há histórico.': 'No history yet.',
+  Desbloquear: 'Unblock',
+  'Nenhum release bloqueado.': 'No blocked releases.',
+  Mês: 'Month',
+  'Mês anterior': 'Previous month',
+  'Mês seguinte': 'Next month',
+  'Nada em falta.': 'Nothing missing.',
+
   // Mensagens de erro do servidor
   'yaml obrigatório': 'yaml is required',
   'ficheiro não é um export do MediaStack (versão 1)':

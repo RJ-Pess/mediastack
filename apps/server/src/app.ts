@@ -34,6 +34,7 @@ import {
 import { readRequestedQuality, readSyncStatus } from './quality/recyclarr.js';
 import { listBackups, runBackups } from './media/backups.js';
 import { getOverview } from './media/overview.js';
+import { blocklist, bulk, history, unblock, wanted } from './media/library-ops.js';
 import { discover, discoverRows, genres, type Filters } from './media/discover.js';
 import { exportYaml, importYaml } from './plan/portable.js';
 import { deriveDesired, diffLeaves } from './adopt.js';
@@ -317,7 +318,37 @@ export async function buildApp(config: Config, fetchImpl?: typeof fetch) {
     return { ok: true };
   });
   app.get('/api/overview', async () => getOverview(ctx()));
-  app.get('/api/calendar', async () => getCalendar(ctx()));
+  app.get('/api/calendar', async (req) => {
+    const q = req.query as { start?: string; days?: string };
+    const from =
+      q.start && /^\d{4}-\d{2}-\d{2}$/.test(q.start) ? new Date(`${q.start}T00:00:00Z`) : undefined;
+    const days = Math.min(62, Math.max(1, Number(q.days) || 21));
+    return getCalendar(ctx(), days, from);
+  });
+  app.get('/api/wanted', async () => wanted(ctx()));
+  app.get('/api/activity/history', async () => history(ctx()));
+  app.get('/api/activity/blocklist', async () => blocklist(ctx()));
+  app.delete('/api/activity/blocklist/:service/:id', async (req, reply) => {
+    const { service, id } = req.params as { service: string; id: string };
+    if ((service !== 'sonarr' && service !== 'radarr') || !/^\d+$/.test(id)) {
+      return reply.code(400).send({ error: 'pedido inválido' });
+    }
+    await unblock(ctx(), service, Number(id));
+    return { ok: true };
+  });
+  const bulkSchema = z.object({
+    action: z.enum(['search', 'monitor', 'unmonitor']),
+    items: z
+      .array(z.object({ kind: z.enum(['movie', 'series']), id: z.number().int().positive() }))
+      .min(1)
+      .max(500),
+  });
+  app.post('/api/library/bulk', async (req, reply) => {
+    const p = bulkSchema.safeParse(req.body);
+    if (!p.success) return reply.code(400).send({ error: 'pedido inválido' });
+    await bulk(ctx(), p.data.action, p.data.items);
+    return { ok: true };
+  });
   app.get('/api/library', async () => getLibrary(ctx()));
   app.get('/api/system', async () => getSystem(ctx(), config));
   app.get('/api/requests', async (_req, reply) => {
