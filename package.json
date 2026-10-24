@@ -7,11 +7,6 @@
   "engines": {
     "node": "\u003e\u003d22"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild"
-    ]
-  },
   "workspaces": [
     "apps/*"
   ],
