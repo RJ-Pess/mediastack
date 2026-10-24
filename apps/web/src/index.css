@@ -2,179 +2,460 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* ---------- Tokens ---------- */
 :root {
-  --bg: #f4f5f7;
-  --surface: #ffffff;
-  --surface-2: #eceef2;
-  --text: #14171c;
-  --muted: #4f5a6b;
-  --border: #d5dae2;
-  --accent: #0b6e86;
+  --bg: #f2f3f9;
+  --bg-glow-1: rgba(108, 92, 231, 0.12);
+  --bg-glow-2: rgba(20, 184, 166, 0.1);
+  --surface: rgba(255, 255, 255, 0.86);
+  --surface-solid: #ffffff;
+  --surface-2: #eceef6;
+  --surface-3: #e2e5f0;
+  --text: #141625;
+  --muted: #545a72;
+  --border: rgba(20, 22, 37, 0.1);
+  --highlight: rgba(255, 255, 255, 0.9);
+  --shadow: 0 1px 2px rgba(20, 22, 37, 0.06), 0 12px 32px -12px rgba(20, 22, 37, 0.18);
+  --accent: #5b4ee6;
+  --accent-2: #8174ff;
   --accent-text: #ffffff;
-  --ok: #15803d;
-  --warn: #a16207;
-  --bad: #b91c1c;
+  --ok: #0f7a4d;
+  --warn: #9a5b00;
+  --bad: #c0283a;
+  --c-violet: #6d5df5;
+  --c-sky: #1f78d1;
+  --c-amber: #b26a00;
+  --c-teal: #0d8a7c;
+  --c-rose: #cc2f5a;
+  --c-slate: #4b5674;
+  --c-emerald: #13834f;
+  --ticket: #fbf6ea;
+  --ticket-text: #2a2418;
+  --ticket-muted: #6f6450;
+  --radius: 1.1rem;
 }
 .dark {
-  --bg: #0d1015;
-  --surface: #161a21;
-  --surface-2: #1e232c;
-  --text: #e8ebf0;
-  --muted: #a0abba;
-  --border: #272d38;
-  --accent: #38bdf8;
-  --accent-text: #04202c;
+  --bg: #090c15;
+  --bg-glow-1: rgba(124, 108, 255, 0.16);
+  --bg-glow-2: rgba(45, 212, 191, 0.09);
+  --surface: rgba(22, 27, 43, 0.74);
+  --surface-solid: #161b2b;
+  --surface-2: rgba(255, 255, 255, 0.05);
+  --surface-3: rgba(255, 255, 255, 0.09);
+  --text: #eef0fa;
+  --muted: #a3abc4;
+  --border: rgba(255, 255, 255, 0.08);
+  --highlight: rgba(255, 255, 255, 0.06);
+  --shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 18px 40px -18px rgba(0, 0, 0, 0.7);
+  --accent: #8b7dff;
+  --accent-2: #a99fff;
+  --accent-text: #120d33;
   --ok: #4ade80;
   --warn: #fbbf24;
-  --bad: #f87171;
+  --bad: #fb7185;
+  --c-violet: #a498ff;
+  --c-sky: #6cb4ff;
+  --c-amber: #f5b544;
+  --c-teal: #3fe0cc;
+  --c-rose: #ff8aa8;
+  --c-slate: #b6bfd9;
+  --c-emerald: #5ee59a;
+  --ticket: #f3ead6;
+  --ticket-text: #2a2418;
+  --ticket-muted: #6a5f49;
 }
-body {
-  background: var(--bg);
-  color: var(--text);
-  font-family:
-    'Inter',
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    sans-serif;
-}
-.muted {
-  color: var(--muted);
-}
-.card {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 0.9rem;
-  padding: 1rem;
-}
-.btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  border-radius: 0.6rem;
-  padding: 0.5rem 0.9rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  border: 1px solid var(--border);
-  background: var(--surface-2);
-  color: var(--text);
-  cursor: pointer;
-  transition:
-    transform 0.12s,
-    background 0.12s;
-  min-height: 2.5rem;
-}
-.btn:hover:not(:disabled) {
-  transform: translateY(-1px);
-}
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-.btn-primary {
-  background: var(--accent);
-  color: var(--accent-text);
-  border-color: transparent;
-}
-.btn-ghost {
-  background: transparent;
-}
-.btn-danger {
-  color: var(--bad);
-}
-:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-.input {
-  width: 100%;
-  border-radius: 0.6rem;
-  border: 1px solid var(--border);
-  background: var(--bg);
-  color: var(--text);
-  padding: 0.55rem 0.75rem;
-  min-height: 2.5rem;
-}
-.dot {
-  display: inline-block;
-  width: 0.65rem;
-  height: 0.65rem;
-  border-radius: 999px;
-}
-.dot-ok {
-  background: var(--ok);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--ok) 25%, transparent);
-}
-.dot-warn {
-  background: var(--warn);
-}
-.dot-bad {
-  background: var(--bad);
-}
-.dot-idle {
-  background: var(--muted);
-}
-.skeleton {
-  background: linear-gradient(90deg, var(--surface) 25%, var(--surface-2) 50%, var(--surface) 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.4s infinite;
-  border-radius: 0.9rem;
-}
-@keyframes shimmer {
-  to {
-    background-position: -200% 0;
+
+@layer base {
+  /* ---------- Base ---------- */
+  body {
+    background:
+      radial-gradient(60rem 40rem at -10% -10%, var(--bg-glow-1), transparent 60%),
+      radial-gradient(50rem 36rem at 110% 110%, var(--bg-glow-2), transparent 60%), var(--bg);
+    background-attachment: fixed;
+    color: var(--text);
+    font-family:
+      'Inter',
+      system-ui,
+      -apple-system,
+      'Segoe UI',
+      sans-serif;
+    -webkit-font-smoothing: antialiased;
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .skeleton {
-    animation: none;
+
+@layer components {
+  .muted {
+    color: var(--muted);
   }
+  .mono {
+    font-family: ui-monospace, 'SFMono-Regular', Menlo, monospace;
+    letter-spacing: 0.01em;
+  }
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  /* ---------- Superfícies ---------- */
+  .card,
+  .panel {
+    position: relative;
+    background: linear-gradient(180deg, var(--highlight), transparent 40%), var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    padding: 1rem;
+  }
+  .panel-lg {
+    padding: 1.5rem;
+  }
+  @media (min-width: 768px) {
+    .panel-lg {
+      padding: 2rem;
+    }
+  }
+
+  /* ---------- Botões e campos ---------- */
   .btn {
-    transition: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    border-radius: 0.75rem;
+    padding: 0.5rem 0.9rem;
+    font-size: 0.875rem;
+    font-weight: 550;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text);
+    cursor: pointer;
+    transition:
+      transform 0.12s,
+      background 0.15s,
+      border-color 0.15s;
+    min-height: 2.5rem;
+    text-decoration: none;
   }
-}
-.poster-fallback {
-  display: grid;
-  place-items: center;
-  font-size: 2.5rem;
-  font-weight: 700;
-  background: var(--surface-2);
-  color: var(--muted);
-}
-.poster-card {
-  transition: transform 0.18s;
-}
-.poster-card:hover {
-  transform: translateY(-3px);
-}
-.bar {
-  height: 0.4rem;
-  border-radius: 999px;
-  background: var(--surface-2);
-  overflow: hidden;
-}
-.bar > span {
-  display: block;
-  height: 100%;
-  background: var(--accent);
-  transition: width 0.4s;
-}
-.nav-link {
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-  padding: 0.6rem 0.8rem;
-  border-radius: 0.6rem;
-  color: var(--muted);
-  text-decoration: none;
-  min-height: 2.5rem;
-}
-.nav-link:hover {
-  background: var(--surface-2);
-  color: var(--text);
-}
-.nav-link[aria-current='page'] {
-  background: var(--surface-2);
-  color: var(--text);
-  box-shadow: inset 3px 0 0 var(--accent);
+  .btn:hover:not(:disabled) {
+    transform: translateY(-1px);
+    background: var(--surface-3);
+  }
+  .btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+  .btn-primary {
+    background: linear-gradient(180deg, var(--accent-2), var(--accent));
+    color: var(--accent-text);
+    border-color: transparent;
+    box-shadow: 0 6px 18px -8px var(--accent);
+  }
+  .btn-primary:hover:not(:disabled) {
+    background: linear-gradient(180deg, var(--accent-2), var(--accent));
+    filter: brightness(1.06);
+  }
+  .btn-ghost {
+    background: transparent;
+    border-color: transparent;
+  }
+  .btn-danger {
+    color: var(--bad);
+  }
+  .btn-icon {
+    padding: 0.5rem;
+    width: 2.5rem;
+  }
+  .input {
+    width: 100%;
+    border-radius: 0.75rem;
+    border: 1px solid var(--border);
+    background: var(--surface-2);
+    color: var(--text);
+    padding: 0.55rem 0.8rem;
+    min-height: 2.5rem;
+  }
+  .input::placeholder {
+    color: var(--muted);
+  }
+
+  /* ---------- Estados ---------- */
+  .dot {
+    display: inline-block;
+    width: 0.6rem;
+    height: 0.6rem;
+    border-radius: 999px;
+    vertical-align: middle;
+  }
+  .dot-ok {
+    background: var(--ok);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--ok) 22%, transparent);
+  }
+  .dot-warn {
+    background: var(--warn);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--warn) 22%, transparent);
+  }
+  .dot-bad {
+    background: var(--bad);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--bad) 22%, transparent);
+  }
+  .dot-idle {
+    background: var(--muted);
+  }
+
+  /* Ícone num quadrado colorido (barra lateral, cartões). `--tile` define a cor. */
+  .tile {
+    display: inline-grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 0.65rem;
+    color: var(--tile, var(--accent));
+    background: color-mix(in srgb, var(--tile, var(--accent)) 16%, transparent);
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tile, var(--accent)) 28%, transparent);
+  }
+  .tile-lg {
+    width: 2.75rem;
+    height: 2.75rem;
+    border-radius: 0.85rem;
+  }
+
+  /* Chip de estado. `--chip` define a cor. */
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-height: 2.25rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 0.7rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--chip, var(--text));
+    background: color-mix(in srgb, var(--chip, var(--text)) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--chip, var(--text)) 30%, transparent);
+    text-decoration: none;
+    transition: transform 0.12s;
+  }
+  a.chip:hover {
+    transform: translateY(-1px);
+  }
+  .count-badge {
+    margin-left: auto;
+    min-width: 1.4rem;
+    padding: 0.05rem 0.4rem;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-align: center;
+    color: var(--accent-text);
+    background: var(--accent);
+  }
+
+  /* ---------- Medidores ---------- */
+  .bar {
+    height: 0.4rem;
+    border-radius: 999px;
+    background: var(--surface-3);
+    overflow: hidden;
+  }
+  .bar > span {
+    display: block;
+    height: 100%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    transition: width 0.5s;
+  }
+  .bar-ok > span {
+    background: linear-gradient(90deg, var(--c-emerald), var(--c-teal));
+  }
+  .bar-warn > span {
+    background: linear-gradient(90deg, var(--c-amber), var(--warn));
+  }
+
+  /* ---------- Bilhete (poster com canhoto) ---------- */
+  .ticket {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    border-radius: 0.9rem;
+    overflow: visible;
+    text-decoration: none;
+    color: inherit;
+    transition: transform 0.2s;
+  }
+  .ticket:hover {
+    transform: translateY(-4px) rotate(-0.4deg);
+  }
+  .ticket-art {
+    position: relative;
+    aspect-ratio: 2 / 3;
+    border-radius: 0.9rem 0.9rem 0 0;
+    overflow: hidden;
+    background: var(--surface-3);
+  }
+  .ticket-art img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .ticket-stub {
+    position: relative;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    padding: 0.6rem 0.7rem 0.7rem;
+    border-radius: 0 0 0.9rem 0.9rem;
+    background: var(--ticket);
+    color: var(--ticket-text);
+    border-top: 2px dashed rgba(42, 36, 24, 0.25);
+    /* recortes laterais, como um bilhete destacável */
+    -webkit-mask:
+      radial-gradient(circle at 0 0, transparent 0.45rem, #000 0.5rem) top left / 51% 100% no-repeat,
+      radial-gradient(circle at 100% 0, transparent 0.45rem, #000 0.5rem) top right / 51% 100%
+        no-repeat;
+    mask:
+      radial-gradient(circle at 0 0, transparent 0.45rem, #000 0.5rem) top left / 51% 100% no-repeat,
+      radial-gradient(circle at 100% 0, transparent 0.45rem, #000 0.5rem) top right / 51% 100%
+        no-repeat;
+  }
+  .ticket-kicker {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: 0.62rem;
+    font-weight: 700;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--ticket-muted);
+  }
+  .ticket-title {
+    font-weight: 650;
+    font-size: 0.9rem;
+    line-height: 1.2;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  .ticket-badge {
+    position: absolute;
+    top: 0.5rem;
+    left: 0.5rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+    padding: 0.2rem 0.55rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    font-weight: 650;
+    color: #fff;
+    background: rgba(10, 12, 22, 0.72);
+    backdrop-filter: blur(6px);
+  }
+  .ticket-progress {
+    position: absolute;
+    inset: auto 0 0 0;
+    height: 0.3rem;
+    background: rgba(0, 0, 0, 0.35);
+  }
+  .ticket-progress > span {
+    display: block;
+    height: 100%;
+    background: linear-gradient(90deg, var(--c-sky), var(--c-teal));
+  }
+  /* fila horizontal de bilhetes */
+  .ticket-row {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(8.5rem, 9.5rem);
+    gap: 0.9rem;
+    overflow-x: auto;
+    padding: 0.25rem 0.1rem 0.6rem;
+    scroll-snap-type: x proximity;
+  }
+  .ticket-row > * {
+    scroll-snap-align: start;
+  }
+
+  /* ---------- Placeholders ---------- */
+  .skeleton {
+    background: linear-gradient(
+      90deg,
+      var(--surface-2) 25%,
+      var(--surface-3) 50%,
+      var(--surface-2) 75%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.4s infinite;
+    border-radius: var(--radius);
+  }
+  @keyframes shimmer {
+    to {
+      background-position: -200% 0;
+    }
+  }
+  .poster-fallback {
+    display: grid;
+    place-items: center;
+    font-size: 2.5rem;
+    font-weight: 700;
+    background:
+      radial-gradient(
+        circle at 30% 25%,
+        color-mix(in srgb, var(--accent) 35%, transparent),
+        transparent 60%
+      ),
+      var(--surface-3);
+    color: var(--muted);
+  }
+  .poster-card {
+    transition: transform 0.18s;
+  }
+  .poster-card:hover {
+    transform: translateY(-3px);
+  }
+
+  /* ---------- Navegação ---------- */
+  .nav-link {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.45rem 0.6rem;
+    border-radius: 0.8rem;
+    color: var(--muted);
+    font-weight: 550;
+    text-decoration: none;
+    min-height: 2.5rem;
+    transition: background 0.15s;
+  }
+  .nav-link:hover {
+    background: var(--surface-2);
+    color: var(--text);
+  }
+  .nav-link[aria-current='page'] {
+    color: var(--text);
+    background: linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--tile, var(--accent)) 22%, transparent),
+      transparent 85%
+    );
+    box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--tile, var(--accent)) 25%, transparent);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .skeleton {
+      animation: none;
+    }
+    .btn,
+    .ticket,
+    .chip,
+    .poster-card {
+      transition: none;
+    }
+    .ticket:hover {
+      transform: none;
+    }
+  }
 }

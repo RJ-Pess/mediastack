@@ -33,6 +33,8 @@ import {
 } from './media/indexers.js';
 import { readRequestedQuality, readSyncStatus } from './quality/recyclarr.js';
 import { listBackups, runBackups } from './media/backups.js';
+import { getOverview } from './media/overview.js';
+import { discover, discoverRows, genres, type Filters } from './media/discover.js';
 import { exportYaml, importYaml } from './plan/portable.js';
 import { deriveDesired, diffLeaves } from './adopt.js';
 import { SERVICE_KEYS } from './connections.js';
@@ -261,6 +263,60 @@ export async function buildApp(config: Config, fetchImpl?: typeof fetch) {
   });
   app.get('/api/backups', async () => listBackups(ctx()));
   app.post('/api/backups/run', async () => runBackups(ctx()));
+  // --- Descobrir (via Seerr/TMDB) ---
+  const dismissedKeys = () => new Set(planner.store.listDismissed().map((d) => d.key));
+  const discoverQuery = z.object({
+    type: z.enum(['movie', 'tv']).default('movie'),
+    genre: z.coerce.number().int().positive().optional(),
+    yearFrom: z.coerce.number().int().min(1900).max(2100).optional(),
+    yearTo: z.coerce.number().int().min(1900).max(2100).optional(),
+    sort: z.enum(['popular', 'rating', 'newest']).default('popular'),
+    page: z.coerce.number().int().min(1).max(500).default(1),
+    hideOwned: z.enum(['0', '1']).default('0'),
+    lang: z.enum(['pt', 'en']).default('pt'),
+  });
+  /** Idioma da UI → idioma do TMDB. */
+  const tmdbLang = (l: unknown) => (l === 'en' ? 'en' : 'pt-PT');
+  app.get('/api/discover', async (req, reply) => {
+    const s = seerrOr503(reply);
+    if (!s) return reply;
+    const parsed = discoverQuery.safeParse(req.query);
+    if (!parsed.success) return reply.code(400).send({ error: 'filtros inválidos' });
+    const { lang, ...rest } = parsed.data;
+    const f: Filters = { ...rest, hideOwned: rest.hideOwned === '1', language: tmdbLang(lang) };
+    return discover(s, f, dismissedKeys());
+  });
+  app.get('/api/discover/rows', async (req, reply) => {
+    const s = seerrOr503(reply);
+    if (!s) return reply;
+    const q = req.query as { hideOwned?: string; lang?: string };
+    return discoverRows(ctx(), s, dismissedKeys(), q.hideOwned === '1', tmdbLang(q.lang));
+  });
+  app.get('/api/discover/genres', async (req, reply) => {
+    const s = seerrOr503(reply);
+    if (!s) return reply;
+    const q = req.query as { type?: string; lang?: string };
+    return genres(s, q.type === 'tv' ? 'tv' : 'movie', tmdbLang(q.lang));
+  });
+  const dismissSchema = z.object({
+    mediaType: z.enum(['movie', 'tv']),
+    tmdbId: z.number().int().positive(),
+    title: z.string().max(300).default(''),
+  });
+  app.get('/api/discover/dismissed', async () => planner.store.listDismissed());
+  app.post('/api/discover/dismissed', async (req, reply) => {
+    const p = dismissSchema.safeParse(req.body);
+    if (!p.success) return reply.code(400).send({ error: 'pedido inválido' });
+    planner.store.dismiss(`${p.data.mediaType}:${p.data.tmdbId}`, p.data.title);
+    return { ok: true };
+  });
+  app.delete('/api/discover/dismissed/:key', async (req, reply) => {
+    const key = (req.params as { key: string }).key;
+    if (!/^(movie|tv):\d+$/.test(key)) return reply.code(400).send({ error: 'pedido inválido' });
+    planner.store.undismiss(key);
+    return { ok: true };
+  });
+  app.get('/api/overview', async () => getOverview(ctx()));
   app.get('/api/calendar', async () => getCalendar(ctx()));
   app.get('/api/library', async () => getLibrary(ctx()));
   app.get('/api/system', async () => getSystem(ctx(), config));

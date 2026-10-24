@@ -29,6 +29,7 @@ export class Store {
       CREATE TABLE IF NOT EXISTS sessions (
         token_hash TEXT PRIMARY KEY, user_id INTEGER NOT NULL, expires_at INTEGER NOT NULL
       );
+      CREATE TABLE IF NOT EXISTS dismissed (key TEXT PRIMARY KEY, title TEXT, at TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS flags (name TEXT PRIMARY KEY, value TEXT NOT NULL);
       CREATE TABLE IF NOT EXISTS connections (
         service TEXT PRIMARY KEY, url TEXT NOT NULL, username TEXT, secret TEXT NOT NULL
@@ -120,6 +121,21 @@ export class Store {
       this.db.prepare('SELECT value FROM secrets WHERE name = ?').get(name) as
         { value: string } | undefined
     )?.value;
+  }
+
+  /** "Não me interessa" no Descobrir (chave `movie:123` / `tv:456`). */
+  dismiss(key: string, title: string): void {
+    this.db
+      .prepare('INSERT OR REPLACE INTO dismissed (key, title, at) VALUES (?, ?, ?)')
+      .run(key, title, new Date().toISOString());
+  }
+
+  undismiss(key: string): void {
+    this.db.prepare('DELETE FROM dismissed WHERE key = ?').run(key);
+  }
+
+  listDismissed(): { key: string; title: string; at: string }[] {
+    return this.db.prepare('SELECT key, title, at FROM dismissed ORDER BY at DESC').all() as never;
   }
 
   getFlag(name: string): boolean {

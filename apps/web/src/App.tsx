@@ -5,6 +5,7 @@ import { Shell } from './Shell';
 import { Login, Wizard } from './pages/Auth';
 import { Activity } from './pages/Activity';
 import { Calendar } from './pages/Calendar';
+import { Discover } from './pages/Discover';
 import { Home } from './pages/Home';
 import { Library } from './pages/Library';
 import { Requests } from './pages/Requests';
@@ -31,6 +32,7 @@ export function App() {
       <Routes>
         <Route element={<Shell user={me.data.user} />}>
           <Route index element={<Home />} />
+          <Route path="descobrir" element={<Discover />} />
           <Route path="biblioteca" element={<Library />} />
           <Route path="pedidos" element={<Requests />} />
           <Route path="atividade" element={<Activity />} />

@@ -82,7 +82,8 @@ test('wizard completo e pedido de um filme que aparece na fila do Radarr', async
 
   // --- Painel: os 7 serviços em verde ---
   await expect(page.getByRole('heading', { name: 'Início' })).toBeVisible();
-  await expect(page.getByRole('img', { name: 'Em ordem' })).toHaveCount(7, { timeout: 30_000 });
+  // O cartão do servidor resume o estado: os 7 serviços a responder.
+  await expect(page.getByText('7/7 serviços')).toBeVisible({ timeout: 30_000 });
 
   // --- Indexador falso (via API do Prowlarr) e espera pelo sync para o Radarr ---
   await addMockIndexer();
