@@ -1,0 +1,423 @@
+# docker-compose.casaos.yml
+# Stack MediaStack no formato CasaOS, baseado no teu exemplo de stack.
+# Ajusta PUID/PGID/TZ e os caminhos /DATA/... à tua instalação antes de usar.
+#   docker compose -f deploy/docker-compose.casaos.yml up -d
+#
+# Serviços: mediastack (painel), mediastack-init (bootstrap obrigatório),
+# seerr (pedidos), sonarr, radarr, prowlarr, bazarr, qbittorrent, byparr.
+
+name: mediastack
+
+services:
+  mediastack-init:
+    cpu_shares: 90
+    command: ['node', 'dist/index.js', 'init']
+    container_name: mediastack-init
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Lisbon
+      - MEDIASTACK_DATA_ROOT=/data
+      - MEDIASTACK_TORRENT_PORT=6882
+    image: mediastack:local
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER]
+    security_opt: ['no-new-privileges:true']
+    user: '0:0'
+    restart: 'no'
+    networks:
+      - mediastack
+    volumes:
+      - type: bind
+        source: /DATA/AppData/Media/mediastack
+        target: /configs
+      - type: bind
+        source: /DATA/AppData/Media/mediastack/secrets
+        target: /run/mediastack
+      - type: bind
+        source: /DATA/Disco
+        target: /data
+
+  mediastack:
+    cpu_shares: 90
+    command: []
+    container_name: mediastack
+    depends_on:
+      mediastack-init:
+        condition: service_completed_successfully
+        required: true
+      sonarr:
+        condition: service_started
+        required: true
+      radarr:
+        condition: service_started
+        required: true
+      prowlarr:
+        condition: service_started
+        required: true
+    deploy:
+      resources:
+        limits:
+          memory: 5922M
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Lisbon
+      - MEDIASTACK_DATA_ROOT=/data
+      - MEDIASTACK_TORRENT_PORT=6882
+    image: mediastack:local
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    user: '1000:1000'
+    restart: unless-stopped
+    networks:
+      - mediastack
+    ports:
+      - target: 8080
+        published: "8088"
+        protocol: tcp
+    volumes:
+      - type: bind
+        source: /DATA/AppData/Media/mediastack/data
+        target: /config
+      - type: bind
+        source: /DATA/AppData/Media/mediastack/recyclarr
+        target: /recyclarr
+      - type: bind
+        source: /DATA/Disco
+        target: /data
+      - type: bind
+        source: /DATA/AppData/Media/mediastack/secrets
+        target: /run/mediastack
+        read_only: true
+
+  seerr:
+    cpu_shares: 90
+    command: []
+    container_name: seerr
+    depends_on:
+      mediastack-init:
+        condition: service_completed_successfully
+        required: true
+    deploy:
+      resources:
+        limits:
+          memory: 5922M
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Lisbon
+    hostname: seerr
+    image: ghcr.io/seerr-team/seerr:v3.5.1
+    labels:
+      icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/jellyseerr.png
+    ports:
+      - target: 5055
+        published: "5055"
+        protocol: tcp
+    restart: unless-stopped
+    user: '1000:1000'
+    volumes:
+      - type: bind
+        source: /DATA/AppData/Media/seerr
+        target: /app/config
+    devices: []
+    cap_add: []
+    networks:
+      - mediastack
+    privileged: false
+  sonarr:
+    cpu_shares: 90
+    command: []
+    container_name: sonarr
+    depends_on:
+      mediastack-init:
+        condition: service_completed_successfully
+        required: true
+    deploy:
+      resources:
+        limits:
+          memory: 5922M
+        reservations:
+          memory: "268435456"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Lisbon
+    hostname: sonarr
+    image: lscr.io/linuxserver/sonarr:4.0.20
+    labels:
+      icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/sonarr.png
+    ports:
+      - target: 8989
+        published: "8989"
+        protocol: tcp
+    restart: unless-stopped
+    user: '1000:1000'
+    volumes:
+      - type: bind
+        source: /DATA/AppData/Media/sonarr
+        target: /config
+      - type: bind
+        source: /DATA/Disco/Entretenimento/Séries
+        target: /tv
+      - type: bind
+        source: /DATA/Downloads
+        target: /downloads
+    devices: []
+    cap_add: []
+    networks:
+      - mediastack
+    privileged: false
+
+  radarr:
+    cpu_shares: 90
+    command: []
+    container_name: radarr
+    depends_on:
+      mediastack-init:
+        condition: service_completed_successfully
+        required: true
+    deploy:
+      resources:
+        limits:
+          memory: 5922M
+        reservations:
+          memory: "268435456"
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Lisbon
+    hostname: radarr
+    image: lscr.io/linuxserver/radarr:6.4.4
+    labels:
+      icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/radarr.png
+    ports:
+      - target: 7878
+        published: "7878"
+        protocol: tcp
+    restart: unless-stopped
+    user: '1000:1000'
+    volumes:
+      - type: bind
+        source: /DATA/AppData/Media/radarr
+        target: /config
+      - type: bind
+        source: /DATA/Disco/Entretenimento/Filmes
+        target: /movies
+      - type: bind
+        source: /DATA/Downloads
+        target: /downloads
+      - type: bind
+        source: "/DATA/Disco/Entretenimento/Filmes Bons (Baixados por Mim)"
+        target: /Bons
+    devices: []
+    cap_add: []
+    networks:
+      - mediastack
+    privileged: false
+
+  prowlarr:
+    cpu_shares: 90
+    command: []
+    container_name: prowlarr
+    depends_on:
+      byparr:
+        condition: service_started
+        required: true
+      mediastack-init:
+        condition: service_completed_successfully
+        required: true
+    deploy:
+      resources:
+        limits:
+          memory: 5922M
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Lisbon
+    hostname: prowlarr
+    image: lscr.io/linuxserver/prowlarr:2.6.5
+    labels:
+      icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/prowlarr.png
+    ports:
+      - target: 9696
+        published: "9696"
+        protocol: tcp
+    restart: unless-stopped
+    user: '1000:1000'
+    volumes:
+      - type: bind
+        source: /DATA/AppData/Media/prowlarr
+        target: /config
+    devices: []
+    cap_add: []
+    networks:
+      - mediastack
+    privileged: false
+
+  bazarr:
+    cpu_shares: 90
+    command: []
+    container_name: bazarr
+    depends_on:
+      mediastack-init:
+        condition: service_completed_successfully
+        required: true
+      radarr:
+        condition: service_started
+        required: true
+      sonarr:
+        condition: service_started
+        required: true
+    deploy:
+      resources:
+        limits:
+          memory: 5922M
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=Europe/Lisbon
+    hostname: bazarr
+    image: lscr.io/linuxserver/bazarr:1.6.2
+    labels:
+      icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/bazarr.png
+    ports:
+      - target: 6767
+        published: "6767"
+        protocol: tcp
+    restart: unless-stopped
+    user: '1000:1000'
+    volumes:
+      - type: bind
+        source: /DATA/AppData/Media/bazarr
+        target: /config
+      - type: bind
+        source: /DATA/Disco/Entretenimento/Filmes
+        target: /movies
+      - type: bind
+        source: /DATA/Disco/Entretenimento/Séries
+        target: /tv
+      - type: bind
+        source: "/DATA/Disco/Entretenimento/Filmes Bons (Baixados por Mim)"
+        target: /Bons
+    devices: []
+    cap_add: []
+    networks:
+      - mediastack
+    privileged: false
+
+  qbittorrent:
+    cpu_shares: 90
+    command: []
+    container_name: qbittorrent
+    depends_on:
+      mediastack-init:
+        condition: service_completed_successfully
+        required: true
+    deploy:
+      resources:
+        limits:
+          memory: 5922M
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TORRENTING_PORT=6881
+      - TZ=Europe/Lisbon
+      - WEBUI_PORT=8080
+    hostname: qbittorrent
+    image: lscr.io/linuxserver/qbittorrent:5.3.0
+    labels:
+      icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/qbittorrent.png
+    ports:
+      - target: 8080
+        published: "8080"
+        protocol: tcp
+      - target: 6881
+        published: "6881"
+        protocol: tcp
+      - target: 6881
+        published: "6881"
+        protocol: udp
+    restart: unless-stopped
+    user: '1000:1000'
+    volumes:
+      - type: bind
+        source: /DATA/AppData/Media/qbittorrent
+        target: /config
+      - type: bind
+        source: /DATA/Downloads
+        target: /downloads
+      - type: bind
+        source: /DATA/Disco
+        target: /Disco
+    devices: []
+    cap_add: []
+    networks:
+      - mediastack
+    privileged: false
+
+  byparr:
+    cpu_shares: 90
+    command: []
+    container_name: byparr
+    deploy:
+      resources:
+        limits:
+          memory: 5922M
+    environment:
+      - LOG_LEVEL=INFO
+      - TZ=Europe/Lisbon
+    hostname: byparr
+    image: ghcr.io/thephaseless/byparr:3.0.4
+    labels:
+      icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/jellyseerr.png
+    init: true
+    ports:
+      - target: 8191
+        published: "8191"
+        protocol: tcp
+    restart: unless-stopped
+    user: '1000:1000'
+    volumes: []
+    devices: []
+    cap_add: []
+    networks:
+      - mediastack
+    privileged: false
+
+networks:
+  mediastack:
+    name: mediastack
+
+x-casaos:
+  architectures:
+    - amd64
+    - arm64
+  author: Romeu
+  category: Media
+  description:
+    en_us: >
+      Full media automation stack: MediaStack control plane, Byparr
+      (Cloudflare bypass), Prowlarr (indexers), Sonarr (series), Radarr
+      (movies), Bazarr (subtitles), qBittorrent (downloads), Seerr
+      (requests). Start and stop everything with one click.
+  developer: ""
+  hostname: ""
+  icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/jellyseerr.png
+  index: /
+  is_uncontrolled: false
+  main: mediastack
+  port_map: "8088"
+  scheme: http
+  store_app_id: mediastack
+  tagline:
+    en_us: One-click media stack — MediaStack · Prowlarr · Sonarr · Radarr · Bazarr · qBittorrent · Seerr · Byparr
+  title:
+    custom: Media Stack
+    en_us: Media Stack
+
