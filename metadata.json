@@ -1,0 +1,8 @@
+{
+  "name": "MediaStack",
+  "description": "Unified dashboard and automated media stack management for Jellyfin, Seerr, Sonarr, Radarr, and Prowlarr.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
