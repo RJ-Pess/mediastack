@@ -3,6 +3,10 @@ FROM node:22-alpine AS build
 RUN corepack enable
 WORKDIR /repo
 COPY . .
+# Desativa a verificação de idade mínima de lançamento do pnpm (minimumReleaseAge),
+# necessária para builds com pacotes publicados recentemente
+# (ex.: baseline-browser-mapping, electron-to-chromium).
+ENV PNPM_MINIMUM_RELEASE_AGE=0
 RUN pnpm install --frozen-lockfile \
  && pnpm -r build \
  && pnpm --filter @mediastack/server deploy --prod --legacy /out
