@@ -53,7 +53,7 @@ services:
 
   mediastack:
     cpu_shares: 90
-    command: []
+    command: ['node', 'dist/index.js']
     container_name: mediastack
     depends_on:
       mediastack-init:
@@ -106,7 +106,6 @@ services:
 
   seerr:
     cpu_shares: 90
-    command: []
     container_name: seerr
     depends_on:
       mediastack-init:
@@ -141,7 +140,6 @@ services:
     privileged: false
   sonarr:
     cpu_shares: 90
-    command: []
     container_name: sonarr
     depends_on:
       mediastack-init:
@@ -185,7 +183,6 @@ services:
 
   radarr:
     cpu_shares: 90
-    command: []
     container_name: radarr
     depends_on:
       mediastack-init:
@@ -232,7 +229,6 @@ services:
 
   prowlarr:
     cpu_shares: 90
-    command: []
     container_name: prowlarr
     depends_on:
       byparr:
@@ -271,7 +267,6 @@ services:
 
   bazarr:
     cpu_shares: 90
-    command: []
     container_name: bazarr
     depends_on:
       mediastack-init:
@@ -322,7 +317,6 @@ services:
 
   qbittorrent:
     cpu_shares: 90
-    command: []
     container_name: qbittorrent
     depends_on:
       mediastack-init:
@@ -344,7 +338,7 @@ services:
       icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/qbittorrent.png
     ports:
       - target: 8080
-        published: "8080"
+        published: "8081"
         protocol: tcp
       - target: 6881
         published: "6881"
@@ -372,7 +366,6 @@ services:
 
   byparr:
     cpu_shares: 90
-    command: []
     container_name: byparr
     deploy:
       resources:
