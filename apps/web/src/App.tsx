@@ -5,10 +5,9 @@ import { Shell } from './Shell';
 import { Login, Wizard } from './pages/Auth';
 import { Activity } from './pages/Activity';
 import { Calendar } from './pages/Calendar';
-import { Discover } from './pages/Discover';
 import { Home } from './pages/Home';
 import { Library } from './pages/Library';
-import { Requests } from './pages/Requests';
+import { Seerr } from './pages/Seerr';
 import { Settings } from './pages/Settings';
 import { System } from './pages/System';
 import { Skeleton } from './ui';
@@ -32,9 +31,10 @@ export function App() {
       <Routes>
         <Route element={<Shell user={me.data.user} />}>
           <Route index element={<Home />} />
-          <Route path="descobrir" element={<Discover />} />
+          <Route path="seerr" element={<Seerr />} />
           <Route path="biblioteca" element={<Library />} />
-          <Route path="pedidos" element={<Requests />} />
+          <Route path="pedidos" element={<Navigate to="/seerr" replace />} />
+          <Route path="descobrir" element={<Navigate to="/seerr" replace />} />
           <Route path="atividade" element={<Activity />} />
           <Route path="calendario" element={<Calendar />} />
           <Route path="definicoes" element={<Settings />} />

@@ -273,6 +273,7 @@ export const en: Record<string, string> = {
 
   // Início (novo) e barra lateral
   Descobrir: 'Discover',
+  Seerr: 'Seerr',
   'Painel único para a tua stack de media': 'One panel for your media stack',
   'Conta de {user}': 'Account of {user}',
   Sair: 'Sign out',
@@ -385,6 +386,18 @@ export const en: Record<string, string> = {
   'o Seerr já está inicializado': 'Seerr is already initialized',
   'mediaType/tmdbId inválidos': 'invalid mediaType/tmdbId',
   'definitionName obrigatório': 'definitionName is required',
+
+  // Seerr (janela incorporada)
+  'Indique o endereço onde o Jellyseerr está acessível. O MediaStack não publica a porta do Seerr por defeito.':
+    'Indicate the address where Jellyseerr is reachable. MediaStack does not publish the Seerr port by default.',
+  'Endereço do Seerr': 'Seerr address',
+  'Exemplo: http://localhost:5055': 'Example: http://localhost:5055',
+  'Abrir no navegador': 'Open in browser',
+  Recarregar: 'Reload',
+  'Editar endereço': 'Edit address',
+  Cancelar: 'Cancel',
+  'Não foi possível carregar o Seerr. Verifique o endereço.':
+    'Unable to load Seerr. Check the address.',
 
   // Nomes dos campos do plano (`field:<id>`)
   'field:sonarr.rootfolders': 'Root folders',

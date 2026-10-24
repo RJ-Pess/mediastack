@@ -2,14 +2,13 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   CalendarDays,
   Clapperboard,
-  Compass,
   DownloadCloud,
   Home,
-  Inbox,
   Languages,
   Layers,
   LogOut,
   Moon,
+  Monitor,
   Search,
   Settings,
   Sun,
@@ -29,9 +28,8 @@ interface OverviewCounts {
 /** Cada secção tem a sua cor (quadrado do ícone e realce quando ativa). */
 const nav = [
   { to: '/', label: 'Início', icon: Home, color: 'var(--c-violet)', end: true },
-  { to: '/descobrir', label: 'Descobrir', icon: Compass, color: 'var(--c-teal)' },
+  { to: '/seerr', label: 'Seerr', icon: Monitor, color: 'var(--c-teal)' },
   { to: '/biblioteca', label: 'Biblioteca', icon: Clapperboard, color: 'var(--c-sky)' },
-  { to: '/pedidos', label: 'Pedidos', icon: Inbox, color: 'var(--c-amber)', badge: 'requests' },
   {
     to: '/atividade',
     label: 'Atividade',
@@ -84,7 +82,6 @@ export function Shell({ user }: { user: string }) {
   });
   const badges: Record<string, number> = {
     downloads: overview.data?.counts.downloading ?? 0,
-    requests: overview.data?.counts.pendingRequests ?? 0,
   };
 
   useEffect(() => {
