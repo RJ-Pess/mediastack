@@ -7,7 +7,7 @@ COPY . .
 # necessária para builds com pacotes publicados recentemente
 # (ex.: baseline-browser-mapping, electron-to-chromium).
 ENV npm_config_minimum_release_age=0
-RUN pnpm install --frozen-lockfile \
+RUN pnpm install --frozen-lockfile --config.minimum-release-age=0 \
  && pnpm -r build \
  && pnpm --filter @mediastack/server deploy --prod --legacy /out
 
