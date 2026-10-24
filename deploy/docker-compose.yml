@@ -11,10 +11,12 @@ x-lsio-env: &lsio-env
   TZ: ${TZ:-UTC}
   UMASK: ${UMASK:-002}
 
+# Sem container_name: o Compose gera os nomes a partir do projeto (ex.: mediastack-sonarr-1),
+# para o MediaStack poder coexistir com outras stacks no mesmo host. Os serviços falam entre
+# si pelo nome do serviço (sonarr, radarr…).
 services:
   mediastack-init:
     image: ${MEDIASTACK_IMAGE:-mediastack:local}
-    container_name: mediastack-init
     command: ['node', 'dist/index.js', 'init']
     restart: 'no'
     user: '0:0'
@@ -35,7 +37,6 @@ services:
   mediastack:
     <<: *common
     image: ${MEDIASTACK_IMAGE:-mediastack:local}
-    container_name: mediastack
     ports: ['${MEDIASTACK_PORT:-8088}:8080']
     user: '${PUID:-1000}:${PGID:-1000}'
     cap_drop: [ALL]
@@ -53,7 +54,6 @@ services:
   seerr:
     <<: *common
     image: ghcr.io/seerr-team/seerr:v3.5.1
-    container_name: seerr
     # A imagem corre como não-root: alinha com o dono da pasta de config (ver o init).
     user: '${PUID:-1000}:${PGID:-1000}'
     depends_on:
@@ -64,7 +64,6 @@ services:
   sonarr:
     <<: *common
     image: lscr.io/linuxserver/sonarr:4.0.20
-    container_name: sonarr
     depends_on:
       mediastack-init: { condition: service_completed_successfully }
     environment:
@@ -85,7 +84,6 @@ services:
   radarr:
     <<: *common
     image: lscr.io/linuxserver/radarr:6.4.4
-    container_name: radarr
     depends_on:
       mediastack-init: { condition: service_completed_successfully }
     environment:
@@ -103,7 +101,6 @@ services:
   prowlarr:
     <<: *common
     image: lscr.io/linuxserver/prowlarr:2.6.5
-    container_name: prowlarr
     depends_on:
       mediastack-init: { condition: service_completed_successfully }
     environment:
@@ -120,7 +117,6 @@ services:
   bazarr:
     <<: *common
     image: lscr.io/linuxserver/bazarr:1.6.2
-    container_name: bazarr
     # O Bazarr guarda o hostname na config (YAML). O ID aleatório do container pode parecer um
     # número (ex.: 123e456789ab → inf) e o Bazarr passa a recusar todas as escritas.
     hostname: bazarr
@@ -134,7 +130,6 @@ services:
   qbittorrent:
     <<: *common
     image: lscr.io/linuxserver/qbittorrent:5.3.0
-    container_name: qbittorrent
     depends_on:
       mediastack-init: { condition: service_completed_successfully }
     environment:
@@ -151,7 +146,6 @@ services:
   recyclarr:
     <<: *common
     image: ghcr.io/recyclarr/recyclarr:8
-    container_name: recyclarr
     user: '${PUID:-1000}:${PGID:-1000}'
     depends_on:
       mediastack-init: { condition: service_completed_successfully }
@@ -165,7 +159,6 @@ services:
   byparr:
     <<: *common
     image: ghcr.io/thephaseless/byparr:3.0.4
-    container_name: byparr
 
 networks:
   mediastack: {}

@@ -47,7 +47,9 @@ done
 grep -q '"error":null' <<<"$R" || fail "reconcile não terminou sem erros: $R"
 
 json() { python3 -c "import sys,json;d=json.load(sys.stdin);$1"; }
-api() { docker exec mediastack wget -qO- "${@:2}" "$1"; }
+# exec num serviço deste projeto (os nomes dos containers são gerados pelo Compose)
+dexec() { local svc="$1"; shift; docker exec "$("${COMPOSE[@]}" ps -q "$svc")" "$@"; }
+api() { dexec mediastack wget -qO- "${@:2}" "$1"; }
 key() { cat "$WORK/cfg/mediastack/secrets/$1"; }
 H() { echo "--header=X-Api-Key: $(key "$1.key")"; }
 
@@ -123,11 +125,11 @@ api http://sonarr:8989/api/v3/config/host "$(H sonarr)" | grep -c '"backupInterv
 
 # 7. Drift: alteração direta no qBittorrent é detetada
 QB="http://qbittorrent:8080/api/v2"
-SID=$(docker exec mediastack wget -S -qO- --post-data="username=mediastack&password=$(key qbittorrent.password)" "$QB/auth/login" 2>&1 | sed -n 's/.*set-cookie: \([^;]*\).*/\1/Ip' | head -1)
-docker exec mediastack wget -qO- --header="Cookie: $SID" "$QB/app/preferences" |
+SID=$(dexec mediastack wget -S -qO- --post-data="username=mediastack&password=$(key qbittorrent.password)" "$QB/auth/login" 2>&1 | sed -n 's/.*set-cookie: \([^;]*\).*/\1/Ip' | head -1)
+dexec mediastack wget -qO- --header="Cookie: $SID" "$QB/app/preferences" |
   json "assert d['max_seeding_time_enabled'] and d['max_seeding_time']==90 and d['scheduler_enabled'] and (d['schedule_from_hour'],d['schedule_from_min'],d['schedule_to_hour'],d['schedule_to_min'])==(2,0,6,0) and d['alt_dl_limit']==256*1024 and d['alt_up_limit']==64*1024, d" ||
   fail "seeding por tempo / horário de velocidade não chegaram ao qBittorrent"
-docker exec mediastack wget -qO- --header="Cookie: $SID" --post-data='json={"up_limit":524288}' "$QB/app/setPreferences" >/dev/null
+dexec mediastack wget -qO- --header="Cookie: $SID" --post-data='json={"up_limit":524288}' "$QB/app/setPreferences" >/dev/null
 c "$MEDIASTACK/api/drift" | json "assert [c['fieldId'] for c in d['changes']]==['qbittorrent.limit.up'], d" || fail "drift não detetado"
 c -X POST -d '{"fieldId":"qbittorrent.limit.up"}' "$MEDIASTACK/api/drift/adopt" | json "assert d['downloads']['upKiBps']==512, d" || fail "adopt falhou"
 c "$MEDIASTACK/api/drift" | json "assert d['changes']==[], d" || fail "drift persiste depois de adotar"
@@ -147,7 +149,7 @@ c -X POST -d '{"hostname":"jellyfin","port":8096,"username":"admin","password":"
 c "$MEDIASTACK/api/seerr" | json "assert d=={'initialized':True,'linked':True}, d" || fail "Seerr não ficou inicializado"
 APPLY=$(c -X POST -d '{}' "$MEDIASTACK/api/apply")
 json "assert not d['failed'], d" <<<"$APPLY" || fail "apply após ligar o Seerr falhou: $APPLY"
-SK=$(docker exec seerr cat /app/config/settings.json | python3 -c "import sys,json;print(json.load(sys.stdin)['main']['apiKey'])")
+SK=$(dexec seerr cat /app/config/settings.json | python3 -c "import sys,json;print(json.load(sys.stdin)['main']['apiKey'])")
 for k in sonarr radarr; do
   curl -s -H "X-Api-Key: $SK" "localhost:$SEERR_PORT/api/v1/settings/$k" | grep -q 'MediaStack' || fail "Seerr sem $k"
 done

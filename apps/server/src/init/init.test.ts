@@ -1,10 +1,24 @@
-import { mkdtempSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  mkdtempSync,
+  readdirSync,
+  readFileSync,
+  statSync,
+  symlinkSync,
+  writeFileSync,
+} from 'node:fs';
 import { pbkdf2Sync } from 'node:crypto';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { qbitPasswordHash } from './qbittorrent.js';
-import { ensureWritableRoot, installRecyclarrScript, ownedDirs, runInit } from './index.js';
+import {
+  chownTree,
+  ensureWritableRoot,
+  installRecyclarrScript,
+  ownedDirs,
+  runInit,
+} from './index.js';
 import { ensureSecrets } from './secrets.js';
 
 const tmp = () => mkdtempSync(join(tmpdir(), 'mediastack-'));
@@ -88,5 +102,20 @@ describe('installRecyclarrScript', () => {
   it('sem script (dev/testes) não faz nada', () => {
     expect(installRecyclarrScript(undefined, tmp())).toBe(false);
     expect(installRecyclarrScript('/nao/existe.sh', tmp())).toBe(false);
+  });
+});
+
+describe('chownTree', () => {
+  it('não segue links simbólicos (nem ciclos) e só altera o que tem outro dono', () => {
+    const root = tmp();
+    const outside = tmp();
+    writeFileSync(join(outside, 'biblioteca.mkv'), 'x');
+    mkdirSync(join(root, 'sub'));
+    writeFileSync(join(root, 'sub', 'a.conf'), 'x');
+    symlinkSync(outside, join(root, 'link-para-fora'));
+    symlinkSync(root, join(root, 'sub', 'ciclo'));
+    const me = { uid: process.getuid!(), gid: process.getgid!() };
+    // já tudo com o dono certo: não altera nada e termina (sem seguir o ciclo)
+    expect(chownTree(root, me.uid, me.gid)).toBe(0);
   });
 });

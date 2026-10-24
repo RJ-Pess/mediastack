@@ -105,6 +105,12 @@ O `init` já não cria `torrents/` nem `media/`: as pastas (torrents, séries, f
 
 O compose não depende de ficheiros do repositório: o `sync.sh` do Recyclarr vem na imagem do MediaStack e o `init` copia-o para a pasta partilhada. O container do Bazarr tem `hostname: bazarr` fixo: o Bazarr guarda o hostname no YAML e um ID aleatório do tipo `123e456789ab` é lido como número (`inf`), o que faz recusar todas as escritas (falha aleatória apanhada pelo e2e).
 
+## Coexistência no mesmo host
+
+Sem `container_name` em nenhum serviço: o Compose gera os nomes a partir do projeto (`mediastack-sonarr-1`), por isso o MediaStack coexiste com outras stacks (nomes fixos como `sonarr` ou `byparr` chocavam com a stack existente no CasaOS). Os serviços falam entre si pelo nome do serviço. Os scripts de teste usam `docker compose ps -q <serviço>`.
+
+O `init` não segue links simbólicos ao dar a posse às configs e só altera o que tem outro dono (uma config antiga com um link para a biblioteca, ou um ciclo, deixava-o preso a percorrer o disco).
+
 ## Bugs de permissões só visíveis em Linux
 
 Num bind mount do macOS/Colima qualquer utilizador escreve em qualquer pasta, por isso estes só apareceram no CI (Linux). Regra: **toda a pasta criada pelo `init` e usada por um container não-root tem de estar em `ownedDirs()` / ser chownada**. Para reproduzir, usa um diretório da VM do Docker (ex.: `/var/tmp`), nunca um caminho do home do Mac.

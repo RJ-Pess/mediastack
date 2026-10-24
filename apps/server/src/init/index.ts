@@ -4,6 +4,7 @@ import {
   copyFileSync,
   existsSync,
   mkdirSync,
+  lstatSync,
   readdirSync,
   statSync,
 } from 'node:fs';
@@ -26,11 +27,24 @@ export interface InitOptions {
   owner?: { uid: number; gid: number };
 }
 
-function chownTree(path: string, uid: number, gid: number): void {
-  chownSync(path, uid, gid);
-  if (statSync(path).isDirectory()) {
-    for (const f of readdirSync(path)) chownTree(join(path, f), uid, gid);
+/**
+ * Dá a posse a uma árvore de configuração. Nunca segue links simbólicos (uma config antiga com
+ * um link para a biblioteca, ou um ciclo, fazia percorrer/alterar ficheiros fora da config) e
+ * só escreve onde o dono difere, por isso os arranques seguintes são quase instantâneos.
+ * Devolve quantas entradas alterou.
+ */
+export function chownTree(path: string, uid: number, gid: number): number {
+  const st = lstatSync(path, { throwIfNoEntry: false });
+  if (!st || st.isSymbolicLink()) return 0;
+  let changed = 0;
+  if (st.uid !== uid || st.gid !== gid) {
+    chownSync(path, uid, gid);
+    changed++;
   }
+  if (st.isDirectory()) {
+    for (const f of readdirSync(path)) changed += chownTree(join(path, f), uid, gid);
+  }
+  return changed;
 }
 
 export function runInit(o: InitOptions): void {
@@ -58,11 +72,15 @@ export function runInit(o: InitOptions): void {
   log(b ? 'Bazarr config.yaml criado' : 'Bazarr config.yaml já existe, mantido');
 
   if (o.owner) {
-    for (const d of ownedDirs(o)) chownTree(d, o.owner.uid, o.owner.gid);
+    log(`a dar a posse das configs a ${o.owner.uid}:${o.owner.gid}…`);
+    let changed = 0;
+    for (const d of ownedDirs(o)) changed += chownTree(d, o.owner.uid, o.owner.gid);
+    log(`posse verificada (${changed} entradas alteradas)`);
   }
   // As pastas de dados (torrents, bibliotecas…) são escolhidas na UI e criadas pelo próprio
   // MediaStack ao aplicar. Aqui só garantimos que ele consegue escrever na raiz.
   if (o.dataRoot) ensureWritableRoot(o.dataRoot, o.owner);
+  log('concluído');
 }
 
 /**
