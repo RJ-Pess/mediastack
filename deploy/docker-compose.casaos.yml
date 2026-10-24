@@ -2,6 +2,14 @@
 # Stack MediaStack no formato CasaOS, baseado no teu exemplo de stack.
 # UID/PID e volumes iguais ao teu exemplo (PUID=1002/PGID=1001 na maioria,
 # PUID=1003/PGID=1002 em prowlarr/seerr, TZ=Europe/Lisbon).
+#
+# IMPORTANTE: a imagem `mediastack:local` NÃO existe no Docker Hub.
+# Tem de a construir localmente ANTES de subir este stack:
+#   docker build -t mediastack:local .
+#   docker compose -f deploy/docker-compose.casaos.yml up -d
+#
+# Em alternativa, use uma imagem publicada (ex.: GHCR) via ficheiro .env:
+#   echo "MEDIASTACK_IMAGE=ghcr.io/<teu-user>/mediastack:<tag>" > deploy/.env
 #   docker compose -f deploy/docker-compose.casaos.yml up -d
 #
 # Serviços: mediastack (painel), mediastack-init (bootstrap obrigatório),
@@ -24,7 +32,7 @@ services:
       - TZ=Europe/Lisbon
       - MEDIASTACK_DATA_ROOT=/data
       - MEDIASTACK_TORRENT_PORT=6882
-    image: mediastack:local
+    image: ${MEDIASTACK_IMAGE:-mediastack:local}
     cap_drop: [ALL]
     cap_add: [CHOWN, DAC_OVERRIDE, FOWNER]
     security_opt: ['no-new-privileges:true']
@@ -70,7 +78,7 @@ services:
       - TZ=Europe/Lisbon
       - MEDIASTACK_DATA_ROOT=/data
       - MEDIASTACK_TORRENT_PORT=6882
-    image: mediastack:local
+    image: ${MEDIASTACK_IMAGE:-mediastack:local}
     cap_drop: [ALL]
     security_opt: ['no-new-privileges:true']
     user: '1002:1001'
