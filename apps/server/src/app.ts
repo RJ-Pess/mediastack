@@ -361,6 +361,39 @@ export async function buildApp(config: Config, fetchImpl?: typeof fetch) {
     if (!s || !Number.isInteger(id)) return reply;
     return s.post(`request/${id}/approve`);
   });
+  // --- Proxy reverso para o Seerr (SSO via sessão do MediaStack) ---
+  // Encaminha para o Seerr na rede interna do Docker, reescrevendo caminhos
+  // (/api/seerr-proxy/settings/main → /api/v1/settings/main) e repassando
+  // cookies e a API key, para que a janela incorporada funcione sem publicar
+  // a porta do Seerr no host.
+  app.all('/api/seerr-proxy/*', async (req, reply) => {
+    const k = seerrKey();
+    if (!k) return reply.code(401).send({ error: 'não autenticado' });
+    const seerrUrl = config.MEDIASTACK_SEERR_URL.replace(/\/+$/, '');
+    const rest = (req.params as { '*': string })['*'] ?? '';
+    const search = req.url.split('?')[1] ?? '';
+    const target = search ? `${seerrUrl}/api/v1/${rest}?${search}` : `${seerrUrl}/api/v1/${rest}`;
+    const isRead = req.method === 'GET' || req.method === 'HEAD';
+    const http = fetchImpl ?? fetch;
+    const res = await http(target, {
+      method: req.method,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Api-Key': k,
+        ...(req.headers.cookie ? { Cookie: req.headers.cookie } : {}),
+      },
+      ...(isRead ? {} : { body: JSON.stringify(req.body) }),
+      signal: AbortSignal.timeout(30_000),
+    });
+    reply.status(res.status);
+    for (const [name, value] of res.headers.entries()) {
+      const lower = name.toLowerCase();
+      if (lower === 'content-length' || lower === 'transfer-encoding' || lower === 'connection')
+        continue;
+      reply.header(name, value);
+    }
+    return reply.send(await res.text());
+  });
   app.get('/api/search', async (req, reply) => {
     const q = String((req.query as { q?: string }).q ?? '').trim();
     const s = seerrOr503(reply);

@@ -20,6 +20,10 @@ export function Seerr() {
   const [error, setError] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
+  // Quando não há endereço externo, usa o proxy interno do MediaStack
+  // (/api/seerr-proxy) que encaminha para o Seerr na rede interna do Docker.
+  const src = url || '/api/seerr-proxy';
+
   const guardar = () => {
     try {
       localStorage.setItem(STORAGE_KEY, url.trim());
@@ -42,7 +46,7 @@ export function Seerr() {
   return (
     <>
       <PageHeader title={t('Seerr')} />
-      {editing || !url ? (
+      {editing || (!url && error) ? (
         <Card className="space-y-3">
           <div>
             <h2 className="font-semibold">{t('Seerr')}</h2>
@@ -77,13 +81,29 @@ export function Seerr() {
       ) : (
         <>
           <div className="flex items-center gap-2 mb-3">
-            <span className="truncate flex-1 text-sm">{url}</span>
+            <span className="truncate flex-1 text-sm">
+              {url || t('Proxy interno do MediaStack')}
+            </span>
+            {!url && (
+              <span className="text-xs muted">
+                ({t('Sem endereço configurado — a usar proxy interno')})
+              </span>
+            )}
             <Button variant="ghost" onClick={recarregar} aria-label={t('Recarregar')}>
               <RefreshCw className="size-4" aria-hidden />
             </Button>
-            <Button variant="ghost" onClick={abrirNoNavegador} aria-label={t('Abrir no navegador')}>
-              <ExternalLink className="size-4" aria-hidden />
+            <Button variant="ghost" onClick={recarregar} aria-label={t('Recarregar')}>
+              <RefreshCw className="size-4" aria-hidden />
             </Button>
+            {url ? (
+              <Button
+                variant="ghost"
+                onClick={abrirNoNavegador}
+                aria-label={t('Abrir no navegador')}
+              >
+                <ExternalLink className="size-4" aria-hidden />
+              </Button>
+            ) : null}
             <Button variant="ghost" onClick={() => setEditing(true)}>
               {t('Editar endereço')}
             </Button>
@@ -91,7 +111,7 @@ export function Seerr() {
           <div className="rounded-lg border overflow-hidden flex-1 min-h-[600px] relative">
             <iframe
               ref={iframeRef}
-              src={url}
+              src={src}
               title={t('Seerr')}
               className="w-full h-full block"
               sandbox="allow-scripts allow-same-origin allow-popups allow-forms allow-modals"
@@ -106,9 +126,16 @@ export function Seerr() {
                 <p className="text-sm">
                   {t('Não foi possível carregar o Seerr. Verifique o endereço.')}
                 </p>
-                <Button variant="ghost" onClick={recarregar}>
-                  {t('Recarregar')}
-                </Button>
+                {!url && (
+                  <Button variant="ghost" onClick={() => setEditing(true)}>
+                    {t('Configurar endereço')}
+                  </Button>
+                )}
+                {url && (
+                  <Button variant="ghost" onClick={recarregar}>
+                    {t('Recarregar')}
+                  </Button>
+                )}
               </div>
             )}
           </div>

@@ -59,6 +59,7 @@ services:
     depends_on:
       mediastack-init: { condition: service_completed_successfully }
     environment: { TZ: '${TZ:-UTC}' }
+    ports: ['${SEERR_PORT:-5055}:5055']
     volumes: ['${CONFIG_ROOT:-./config}/seerr:/app/config']
 
   sonarr:

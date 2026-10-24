@@ -1,7 +1,7 @@
 import type { Plugin } from 'vite';
 
 export function mockApiPlugin(): Plugin {
-  let meState: { configured: boolean; user: string | null; wizardDone: boolean } = {
+  const meState: { configured: boolean; user: string | null; wizardDone: boolean } = {
     configured: true,
     user: 'admin',
     wizardDone: true,
@@ -73,6 +73,7 @@ export function mockApiPlugin(): Plugin {
         };
 
         // Read body helper
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const readBody = async (): Promise<Record<string, any>> => {
           return new Promise((resolve) => {
             let body = '';
@@ -121,7 +122,12 @@ export function mockApiPlugin(): Plugin {
               { service: 'sonarr', state: 'up', name: 'Sonarr', url: 'http://localhost:8989' },
               { service: 'radarr', state: 'up', name: 'Radarr', url: 'http://localhost:7878' },
               { service: 'prowlarr', state: 'up', name: 'Prowlarr', url: 'http://localhost:9696' },
-              { service: 'qbittorrent', state: 'up', name: 'qBittorrent', url: 'http://localhost:8080' },
+              {
+                service: 'qbittorrent',
+                state: 'up',
+                name: 'qBittorrent',
+                url: 'http://localhost:8080',
+              },
               { service: 'bazarr', state: 'up', name: 'Bazarr', url: 'http://localhost:6767' },
               { service: 'seerr', state: 'up', name: 'Seerr', url: 'http://localhost:5055' },
             ],

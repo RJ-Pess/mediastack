@@ -398,6 +398,9 @@ export const en: Record<string, string> = {
   Cancelar: 'Cancel',
   'Não foi possível carregar o Seerr. Verifique o endereço.':
     'Unable to load Seerr. Check the address.',
+  'Proxy interno do MediaStack': 'MediaStack internal proxy',
+  'Sem endereço configurado — a usar proxy interno': 'No address configured — using internal proxy',
+  'Configurar endereço': 'Configure address',
 
   // Nomes dos campos do plano (`field:<id>`)
   'field:sonarr.rootfolders': 'Root folders',
