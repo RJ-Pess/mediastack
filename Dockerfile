@@ -6,7 +6,7 @@ COPY . .
 # Desativa a verificação de idade mínima de lançamento do pnpm (minimumReleaseAge),
 # necessária para builds com pacotes publicados recentemente
 # (ex.: baseline-browser-mapping, electron-to-chromium).
-ENV PNPM_MINIMUM_RELEASE_AGE=0
+ENV npm_config_minimum_release_age=0
 RUN pnpm install --frozen-lockfile \
  && pnpm -r build \
  && pnpm --filter @mediastack/server deploy --prod --legacy /out
