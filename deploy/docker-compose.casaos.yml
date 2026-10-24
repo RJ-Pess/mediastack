@@ -1,7 +1,6 @@
 # docker-compose.casaos.yml
 # Stack MediaStack no formato CasaOS, baseado no teu exemplo de stack.
-# UID/PID e volumes iguais ao teu exemplo (PUID=1002/PGID=1001 na maioria,
-# PUID=1003/PGID=1002 em prowlarr/seerr, TZ=Europe/Lisbon).
+# Serviços executados com UID 1002, GID 1001 e TZ=Europe/Lisbon.
 #
 # IMPORTANTE: a imagem `mediastack:local` NÃO existe no Docker Hub.
 # Tem de a construir localmente ANTES de subir este stack:
@@ -48,7 +47,7 @@ services:
         source: /DATA/AppData/Media/mediastack/secrets
         target: /run/mediastack
       - type: bind
-        source: /DATA/Disco
+        source: /DATA/Disco_EXT/Entretenimento
         target: /data
 
   mediastack:
@@ -97,7 +96,7 @@ services:
         source: /DATA/AppData/Media/mediastack/recyclarr
         target: /recyclarr
       - type: bind
-        source: /DATA/Disco
+        source: /DATA/Disco_EXT/Entretenimento
         target: /data
       - type: bind
         source: /DATA/AppData/Media/mediastack/secrets
@@ -116,8 +115,8 @@ services:
         limits:
           memory: 5922M
     environment:
-      - PUID=1003
-      - PGID=1002
+      - PUID=1002
+      - PGID=1001
       - TZ=Europe/Lisbon
     hostname: seerr
     image: ghcr.io/seerr-team/seerr:v3.5.1
@@ -128,7 +127,7 @@ services:
         published: "5055"
         protocol: tcp
     restart: unless-stopped
-    user: '1003:1002'
+    user: '1002:1001'
     volumes:
       - type: bind
         source: /DATA/AppData/Media/seerr
@@ -170,7 +169,7 @@ services:
         source: /DATA/AppData/Media/sonarr
         target: /config
       - type: bind
-        source: /DATA/Disco/Entretenimento/Séries
+        source: /DATA/Disco_EXT/Entretenimento/Séries
         target: /tv
       - type: bind
         source: /DATA/Downloads
@@ -213,13 +212,13 @@ services:
         source: /DATA/AppData/Media/radarr
         target: /config
       - type: bind
-        source: /DATA/Disco/Entretenimento/Filmes
+        source: /DATA/Disco_EXT/Entretenimento/Filmes
         target: /movies
       - type: bind
         source: /DATA/Downloads
         target: /downloads
       - type: bind
-        source: "/DATA/Disco/Entretenimento/Filmes Bons (Baixados por Mim)"
+        source: "/DATA/Disco_EXT/Entretenimento/Filmes Bons (Baixados por Mim)"
         target: /Bons
     devices: []
     cap_add: []
@@ -242,8 +241,8 @@ services:
         limits:
           memory: 5922M
     environment:
-      - PUID=1003
-      - PGID=1002
+      - PUID=1002
+      - PGID=1001
       - TZ=Europe/Lisbon
     hostname: prowlarr
     image: lscr.io/linuxserver/prowlarr:2.6.5
@@ -254,7 +253,7 @@ services:
         published: "9696"
         protocol: tcp
     restart: unless-stopped
-    user: '1003:1002'
+    user: '1002:1001'
     volumes:
       - type: bind
         source: /DATA/AppData/Media/prowlarr
@@ -301,13 +300,13 @@ services:
         source: /DATA/AppData/Media/bazarr
         target: /config
       - type: bind
-        source: /DATA/Disco/Entretenimento/Filmes
+        source: /DATA/Disco_EXT/Entretenimento/Filmes
         target: /movies
       - type: bind
-        source: /DATA/Disco/Entretenimento/Séries
+        source: /DATA/Disco_EXT/Entretenimento/Séries
         target: /tv
       - type: bind
-        source: "/DATA/Disco/Entretenimento/Filmes Bons (Baixados por Mim)"
+        source: "/DATA/Disco_EXT/Entretenimento/Filmes Bons (Baixados por Mim)"
         target: /Bons
     devices: []
     cap_add: []
@@ -356,7 +355,7 @@ services:
         source: /DATA/Downloads
         target: /downloads
       - type: bind
-        source: /DATA/Disco
+        source: /DATA/Disco_EXT/Entretenimento
         target: /Disco
     devices: []
     cap_add: []
