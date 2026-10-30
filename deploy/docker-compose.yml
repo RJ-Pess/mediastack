@@ -101,7 +101,7 @@ services:
 
   prowlarr:
     <<: *common
-    image: lscr.io/linuxserver/prowlarr:2.6.5
+    image: lscr.io/linuxserver/prowlarr:2.7.0
     depends_on:
       mediastack-init: { condition: service_completed_successfully }
     environment:
