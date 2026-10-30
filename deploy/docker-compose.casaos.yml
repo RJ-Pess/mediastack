@@ -245,7 +245,7 @@ services:
       - PGID=1001
       - TZ=Europe/Lisbon
     hostname: prowlarr
-    image: lscr.io/linuxserver/prowlarr:2.6.5
+    image: lscr.io/linuxserver/prowlarr:2.7.0
     labels:
       icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/prowlarr.png
     ports:
