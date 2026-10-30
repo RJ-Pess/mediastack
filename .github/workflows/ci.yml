@@ -67,7 +67,7 @@ jobs:
       - name: Verifica que corre como não-root
         run: |
           test "$(docker run --rm --entrypoint id mediastack:scan -u)" != 0
-      - uses: docker/login-action@v3
+      - uses: docker/login-action@v4
         if: github.event_name != 'pull_request'
         with:
           registry: ghcr.io
