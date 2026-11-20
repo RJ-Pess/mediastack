@@ -84,7 +84,7 @@ services:
 
   radarr:
     <<: *common
-    image: lscr.io/linuxserver/radarr:6.4.4
+    image: lscr.io/linuxserver/radarr:7.0.3
     depends_on:
       mediastack-init: { condition: service_completed_successfully }
     environment:
