@@ -198,7 +198,7 @@ services:
       - PGID=1001
       - TZ=Europe/Lisbon
     hostname: radarr
-    image: lscr.io/linuxserver/radarr:6.4.4
+    image: lscr.io/linuxserver/radarr:7.0.3
     labels:
       icon: https://cdn.jsdelivr.net/gh/walkxcode/dashboard-icons/png/radarr.png
     ports:
